@@ -16,6 +16,7 @@ function Register() {
   const [errors, setErrors] = useState({})
   const [loading, setLoading] = useState(false)
   const [apiError, setApiError] = useState('')
+  const [successMessage, setSuccessMessage] = useState('')
 
   useEffect(() => {
     const user = storage.getUser();
@@ -76,15 +77,19 @@ function Register() {
 
     setLoading(true)
     setApiError('')
+    setSuccessMessage('')
 
     try {
       const { confirmPassword, ...registrationData } = formData
       const response = await api.register(registrationData)
-      
+      if (formData.role === 'cordinator') {
+        setSuccessMessage(response.message || 'Your request has been sent successfully to admin.')
+        // Do not log in or redirect
+        return
+      }
       // Store token and user data
       storage.setToken(response.token)
       storage.setUser(response.user)
-      
       // Redirect to dashboard or home page
       navigate('/dashboard')
     } catch (err) {
@@ -118,6 +123,11 @@ function Register() {
         {apiError && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
             {apiError}
+          </div>
+        )}
+        {successMessage && (
+          <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-md">
+            {successMessage}
           </div>
         )}
         

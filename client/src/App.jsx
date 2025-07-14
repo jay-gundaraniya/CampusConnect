@@ -6,6 +6,7 @@ import AdminDashboard from './pages/admin/AdminDashboard'
 import ProtectedRoute from './components/ProtectedRoute'
 import ForgotPassword from './pages/auth/ForgotPassword'
 import ResetPassword from './pages/auth/ResetPassword'
+import CoordinatorDashboard from './pages/CoordinatorDashboard'
 import './App.css'
 
 function App() {
@@ -34,15 +35,14 @@ function App() {
               </ProtectedRoute>
             }
           />
-          {/* Add coordinator dashboard route if you have one */}
-          {/* <Route
+          <Route
             path="/coordinator"
             element={
               <ProtectedRoute allowedRoles={['cordinator']}>
                 <CoordinatorDashboard />
               </ProtectedRoute>
             }
-          /> */}
+          />
         </Routes>
       </div>
     </Router>
