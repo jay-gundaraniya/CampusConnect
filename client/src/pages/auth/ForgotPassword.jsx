@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { api } from '../../services/api';
+import { Link } from 'react-router-dom';
 
 function ForgotPassword() {
   const [email, setEmail] = useState('');
@@ -47,6 +48,9 @@ function ForgotPassword() {
           >
             {loading ? 'Sending...' : 'Send Reset Link'}
           </button>
+          <div className="text-center mt-2">
+            <Link to="/login" className="text-blue-600 hover:text-blue-800 text-sm font-medium">&larr; Back to Login</Link>
+          </div>
         </form>
         {message && <div className="mt-4 text-green-600 text-center">{message}</div>}
         {error && <div className="mt-4 text-red-600 text-center">{error}</div>}
