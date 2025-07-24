@@ -54,8 +54,10 @@ function Register() {
 
     if (!formData.email.trim()) {
       newErrors.email = 'Email is required'
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = 'Email is invalid'
+    } else if (!formData.email.includes('@')) {
+      newErrors.email = 'Please include an "@" in the email address.'
+    } else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(formData.email)) {
+      newErrors.email = 'Please enter a valid email address.'
     }
 
     if (!formData.password) {

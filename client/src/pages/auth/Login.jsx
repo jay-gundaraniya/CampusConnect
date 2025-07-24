@@ -13,6 +13,7 @@ function Login() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [showPassword, setShowPassword] = useState(false);
+  const [emailError, setEmailError] = useState('');
 
   useEffect(() => {
     const user = storage.getUser();
@@ -28,7 +29,8 @@ function Login() {
       ...formData,
       [e.target.name]: e.target.value
     })
-    // Clear error when user starts typing
+    // Only clear error if user edits the field that had an error
+    if (e.target.name === 'email' && emailError) setEmailError('');
     if (error) setError('')
   }
 
@@ -36,6 +38,22 @@ function Login() {
     e.preventDefault()
     setLoading(true)
     setError('')
+    setEmailError('')
+
+    // Email validation
+    if (!formData.email.trim()) {
+      setEmailError('Email is required');
+      setLoading(false);
+      return;
+    } else if (!formData.email.includes('@')) {
+      setEmailError('Please include an "@" in the email address.');
+      setLoading(false);
+      return;
+    } else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(formData.email)) {
+      setEmailError('Please enter a valid email address.');
+      setLoading(false);
+      return;
+    }
 
     try {
       const response = await api.login(formData)
@@ -86,6 +104,12 @@ function Login() {
           </div>
         )}
         
+        {emailError && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded-md text-sm mt-2">
+            {emailError}
+          </div>
+        )}
+
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="rounded-md -space-y-px">
             <div>
