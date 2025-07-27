@@ -34,14 +34,17 @@ router.post('/register', async (req, res) => {
   try {
     const { name, email, password, role } = req.body;
     // Check if user already exists in any collection or as a pending request
-    const exists = await Promise.any([
+    const [student, coordinator, admin, pendingRequest] = await Promise.all([
       Student.findOne({ email }),
       Coordinator.findOne({ email }),
       Admin.findOne({ email }),
       CoordinatorRequest.findOne({ email, status: 'pending' })
-    ]).catch(() => null);
-    if (exists) {
-      return res.status(400).json({ message: 'User with this email already exists or has a pending coordinator request' });
+    ]);
+    if (student || coordinator || admin) {
+      return res.status(400).json({ message: 'A user with this email already exists.' });
+    }
+    if (pendingRequest) {
+      return res.status(400).json({ message: 'There is already a pending coordinator request for this email.' });
     }
     const saltRounds = 12;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
@@ -409,6 +412,21 @@ router.get('/coordinator-count', authenticateToken, async (req, res) => {
     res.json({ count });
   } catch (error) {
     console.error('Error fetching coordinator count:', error);
+    res.status(500).json({ message: 'Internal server error', error: error.message });
+  }
+});
+
+// Get total number of students (admin only)
+router.get('/student-count', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Admin access required' });
+    }
+    const Student = require('../models/Student');
+    const count = await Student.countDocuments();
+    res.json({ count });
+  } catch (error) {
+    console.error('Error fetching student count:', error);
     res.status(500).json({ message: 'Internal server error', error: error.message });
   }
 });
