@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { storage } from '../services/api';
+import { storage } from '../../services/api';
+import { useSessionTimeout } from '../../hooks/useSessionTimeout';
+import SessionTimeout from '../../components/SessionTimeout';
 
 function CoordinatorDashboard() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  useSessionTimeout(); // Add session timeout for coordinator panel (45 minutes)
 
   useEffect(() => {
     const token = storage.getToken();
@@ -39,6 +42,7 @@ function CoordinatorDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <SessionTimeout />
       <header className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">

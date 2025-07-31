@@ -226,7 +226,7 @@ function Register() {
                   value={formData.password}
                   onChange={handleChange}
                 />
-                <button type="button" tabIndex={-1} className="absolute inset-y-0 right-0 flex items-center px-3 text-gray-500" onClick={() => setShowPassword((v) => !v)}>
+                <button type="button" tabIndex={-1} className="absolute inset-y-0 right-0 flex items-center px-3 text-gray-500 hover:text-gray-700 z-20" onClick={() => setShowPassword((v) => !v)}>
                   {showPassword ? <FaEyeSlash /> : <FaEye />}
                 </button>
               </div>
@@ -252,7 +252,7 @@ function Register() {
                   value={formData.confirmPassword}
                   onChange={handleChange}
                 />
-                <button type="button" tabIndex={-1} className="absolute inset-y-0 right-0 flex items-center px-3 text-gray-500" onClick={() => setShowConfirmPassword((v) => !v)}>
+                <button type="button" tabIndex={-1} className="absolute inset-y-0 right-0 flex items-center px-3 text-gray-500 hover:text-gray-700 z-20" onClick={() => setShowConfirmPassword((v) => !v)}>
                   {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
                 </button>
               </div>

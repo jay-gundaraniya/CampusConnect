@@ -3,9 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { storage } from '../../services/api';
 import AdminLayout from './components/AdminLayout';
 import Dashboard from './pages/Dashboard';
+import { useSessionTimeout } from '../../hooks/useSessionTimeout';
 
 function AdminPanel() {
   const navigate = useNavigate();
+  useSessionTimeout(); // Add session timeout for admin panel (30 minutes)
 
   useEffect(() => {
     const userData = storage.getUser();

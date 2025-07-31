@@ -1,6 +1,6 @@
 import { Route } from 'react-router-dom';
 import ProtectedRoute from '../components/ProtectedRoute';
-import CoordinatorDashboard from '../pages/CoordinatorDashboard';
+import CoordinatorDashboard from '../pages/coordinator/CoordinatorDashboard';
 
 export const coordinatorRoutes = [
   <Route

@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { storage, api } from '../../services/api'
+import { useSessionTimeout } from '../../hooks/useSessionTimeout'
+import SessionTimeout from '../../components/SessionTimeout'
 
 function Dashboard() {
   const navigate = useNavigate()
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
+  useSessionTimeout(); // Add session timeout for student panel (60 minutes)
 
   useEffect(() => {
     const token = storage.getToken()
@@ -41,6 +44,7 @@ function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <SessionTimeout />
       {/* Header */}
       <header className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

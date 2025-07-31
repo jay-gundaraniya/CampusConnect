@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { storage } from '../../../services/api';
 import Sidebar from './Sidebar';
+import SessionTimeout from '../../../components/SessionTimeout';
 
 function AdminLayout({ children }) {
   const navigate = useNavigate();
@@ -18,6 +19,7 @@ function AdminLayout({ children }) {
           {children}
         </main>
       </div>
+      <SessionTimeout />
     </div>
   );
 }
