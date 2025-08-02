@@ -1,7 +1,7 @@
 import { BrowserRouter as Router, Routes } from 'react-router-dom'
 import { authRoutes } from './routes/authRoutes'
 import { studentRoutes } from './routes/studentRoutes'
-import { coordinatorRoutes } from './routes/coordinatorRoutes'
+import coordinatorRoutes from './routes/coordinatorRoutes'
 import { adminRoutes } from './routes/adminRoutes'
 import './App.css'
 
