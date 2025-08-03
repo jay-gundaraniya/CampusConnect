@@ -1,5 +1,6 @@
 import { Navigate } from 'react-router-dom';
 import { storage } from '../services/api';
+import DashboardRedirect from './DashboardRedirect';
 
 const ProtectedRoute = ({ children, allowedRoles, role }) => {
   const user = storage.getUser();
@@ -13,9 +14,7 @@ const ProtectedRoute = ({ children, allowedRoles, role }) => {
 
   if (!allowedRolesArray.includes(user.role)) {
     // Redirect to their correct dashboard
-    if (user.role === 'admin') return <Navigate to="/admin" replace />;
-    if (user.role === 'cordinator') return <Navigate to="/coordinator" replace />;
-    return <Navigate to="/dashboard" replace />;
+    return <DashboardRedirect />;
   }
 
   return children;

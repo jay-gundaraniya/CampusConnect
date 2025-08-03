@@ -19,7 +19,8 @@ function Login() {
     const user = storage.getUser();
     if (user) {
       if (user.role === 'admin') navigate('/admin');
-      else if (user.role === 'cordinator') navigate('/coordinator');
+      else if (user.role === 'coordinator' || user.role === 'cordinator') navigate('/coordinator');
+      else if (user.role === 'student') navigate('/student');
       else navigate('/dashboard');
     }
   }, [navigate]);
@@ -65,10 +66,12 @@ function Login() {
       // Role-based redirect
       if (response.user.role === 'admin') {
         navigate('/admin')
-      } else if (response.user.role === 'cordinator') {
+      } else if (response.user.role === 'coordinator' || response.user.role === 'cordinator') {
         navigate('/coordinator')
+      } else if (response.user.role === 'student') {
+        navigate('/student')
       } else {
-        navigate('/dashboard')
+        navigate('/')
       }
     } catch (err) {
       setError(err.message || 'Login failed. Please try again.')
@@ -79,7 +82,15 @@ function Login() {
 
   const handleGoogleSuccess = (result) => {
     // Google OAuth success is handled in the GoogleOAuth component
-    navigate('/dashboard')
+    const user = storage.getUser();
+    if (user) {
+      if (user.role === 'admin') navigate('/admin');
+      else if (user.role === 'coordinator' || user.role === 'cordinator') navigate('/coordinator');
+      else if (user.role === 'student') navigate('/student');
+      else navigate('/dashboard');
+    } else {
+      navigate('/')
+    }
   }
 
   const handleGoogleError = (errorMessage) => {

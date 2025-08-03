@@ -93,7 +93,15 @@ function GoogleOAuth({ onSuccess, onError, buttonText = "Continue with Google", 
       if (onSuccess) {
         onSuccess(result)
       } else {
-        navigate('/dashboard')
+        const user = storage.getUser();
+    if (user) {
+      if (user.role === 'admin') navigate('/admin');
+      else if (user.role === 'coordinator' || user.role === 'cordinator') navigate('/coordinator');
+      else if (user.role === 'student') navigate('/student');
+      else navigate('/dashboard');
+    } else {
+      navigate('/')
+    }
       }
       
     } catch (error) {

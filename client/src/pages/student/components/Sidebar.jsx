@@ -1,11 +1,9 @@
 import { Link, useLocation } from 'react-router-dom';
 import { 
   FaTachometerAlt, 
-  FaPlus, 
   FaCalendarAlt, 
-  FaUsers, 
-  FaUserPlus,
-  FaChartBar,
+  FaCalendarCheck, 
+  FaCertificate,
   FaUser,
   FaSignOutAlt
 } from 'react-icons/fa';
@@ -14,13 +12,11 @@ function Sidebar({ onLogout }) {
   const location = useLocation();
 
   const menuItems = [
-    { path: '/coordinator', icon: FaTachometerAlt, label: 'Dashboard' },
-    { path: '/coordinator/create-event', icon: FaPlus, label: 'Create Event' },
-    { path: '/coordinator/manage-events', icon: FaCalendarAlt, label: 'Manage Events' },
-    { path: '/coordinator/participants', icon: FaUsers, label: 'Manage Participants' },
-    { path: '/coordinator/add-student', icon: FaUserPlus, label: 'Add Student' },
-    { path: '/coordinator/reports', icon: FaChartBar, label: 'Feedback & Reports' },
-    { path: '/coordinator/profile', icon: FaUser, label: 'Profile' }
+    { path: '/student/dashboard', icon: FaTachometerAlt, label: 'Dashboard' },
+    { path: '/student/events', icon: FaCalendarAlt, label: 'Events' },
+    { path: '/student/my-events', icon: FaCalendarCheck, label: 'My Events' },
+    { path: '/student/certificates', icon: FaCertificate, label: 'Certificates' },
+    { path: '/student/profile', icon: FaUser, label: 'Profile' }
   ];
 
   return (
