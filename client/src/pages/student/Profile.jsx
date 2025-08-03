@@ -5,6 +5,8 @@ function Profile() {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [isEditing, setIsEditing] = useState(false)
+  const [showDepartmentDropdown, setShowDepartmentDropdown] = useState(false)
+  const [showYearDropdown, setShowYearDropdown] = useState(false)
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -17,6 +19,25 @@ function Profile() {
     interests: []
   })
 
+  // Department options
+  const departments = [
+    'Information Technology',
+    'Computer Engineering', 
+    'Computer Science Engineering',
+    'AIML',
+    'Electronic & Communication',
+    'Civil',
+    'Mechanical'
+  ]
+
+  // Year options
+  const years = [
+    '1st Year',
+    '2nd Year', 
+    '3rd Year',
+    '4th Year'
+  ]
+
   useEffect(() => {
     // Load user data
     const userData = storage.getUser()
@@ -24,9 +45,9 @@ function Profile() {
     setFormData({
       name: userData?.name || '',
       email: userData?.email || '',
-      phone: '+1 234 567 8900',
+      phone: '+91 ',
       studentId: 'STU2024001',
-      department: 'Computer Science',
+      department: 'Information Technology',
       year: '3rd Year',
       bio: 'Passionate student interested in web development and machine learning. Always eager to learn new technologies and participate in campus events.',
       skills: ['JavaScript', 'React', 'Node.js', 'Python', 'Machine Learning'],
@@ -35,12 +56,54 @@ function Profile() {
     setLoading(false)
   }, [])
 
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (!event.target.closest('.dropdown-container')) {
+        setShowDepartmentDropdown(false)
+        setShowYearDropdown(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [])
+
   const handleInputChange = (e) => {
     const { name, value } = e.target
+    
+    // Handle phone number with +91 prefix
+    if (name === 'phone') {
+      // Only allow numeric input and limit to 10 digits
+      const numericValue = value.replace(/\D/g, '').slice(0, 10)
+      setFormData(prev => ({
+        ...prev,
+        [name]: '+91' + numericValue
+      }))
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }))
+    }
+  }
+
+  const handleDepartmentSelect = (department) => {
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      department
     }))
+    setShowDepartmentDropdown(false)
+  }
+
+  const handleYearSelect = (year) => {
+    setFormData(prev => ({
+      ...prev,
+      year
+    }))
+    setShowYearDropdown(false)
   }
 
   const handleSkillChange = (e) => {
@@ -70,9 +133,9 @@ function Profile() {
     setFormData({
       name: user?.name || '',
       email: user?.email || '',
-      phone: '+1 234 567 8900',
+      phone: '+91',
       studentId: 'STU2024001',
-      department: 'Computer Science',
+      department: 'Information Technology',
       year: '3rd Year',
       bio: 'Passionate student interested in web development and machine learning. Always eager to learn new technologies and participate in campus events.',
       skills: ['JavaScript', 'React', 'Node.js', 'Python', 'Machine Learning'],
@@ -211,22 +274,29 @@ function Profile() {
                     name="email"
                     value={formData.email}
                     onChange={handleInputChange}
-                    disabled={!isEditing}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+                    disabled={true}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 cursor-not-allowed"
+                    title="Email cannot be edited"
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Phone Number
                   </label>
-                  <input
-                    type="tel"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleInputChange}
-                    disabled={!isEditing}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
-                  />
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <span className="text-gray-500 text-sm">+91</span>
+                    </div>
+                    <input
+                      type="tel"
+                      name="phone"
+                      value={formData.phone.replace('+91', '')}
+                      onChange={handleInputChange}
+                      disabled={!isEditing}
+                      placeholder="Enter your phone number"
+                      className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+                    />
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -245,31 +315,71 @@ function Profile() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Department
                   </label>
-                  <input
-                    type="text"
-                    name="department"
-                    value={formData.department}
-                    onChange={handleInputChange}
-                    disabled={!isEditing}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
-                  />
+                  <div className="relative dropdown-container">
+                    <button
+                      type="button"
+                      onClick={() => isEditing && setShowDepartmentDropdown(!showDepartmentDropdown)}
+                      disabled={!isEditing}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 text-left flex items-center justify-between"
+                    >
+                      <span className={formData.department ? 'text-gray-900' : 'text-gray-500'}>
+                        {formData.department || 'Select Department'}
+                      </span>
+                      <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                    
+                    {showDepartmentDropdown && isEditing && (
+                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
+                        {departments.map((dept) => (
+                          <button
+                            key={dept}
+                            type="button"
+                            onClick={() => handleDepartmentSelect(dept)}
+                            className="w-full px-4 py-2 text-left hover:bg-blue-50 hover:text-blue-700 focus:bg-blue-50 focus:text-blue-700 focus:outline-none transition-colors"
+                          >
+                            {dept}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Year
                   </label>
-                  <select
-                    name="year"
-                    value={formData.year}
-                    onChange={handleInputChange}
-                    disabled={!isEditing}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
-                  >
-                    <option value="1st Year">1st Year</option>
-                    <option value="2nd Year">2nd Year</option>
-                    <option value="3rd Year">3rd Year</option>
-                    <option value="4th Year">4th Year</option>
-                  </select>
+                  <div className="relative dropdown-container">
+                    <button
+                      type="button"
+                      onClick={() => isEditing && setShowYearDropdown(!showYearDropdown)}
+                      disabled={!isEditing}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 text-left flex items-center justify-between"
+                    >
+                      <span className={formData.year ? 'text-gray-900' : 'text-gray-500'}>
+                        {formData.year || 'Select Year'}
+                      </span>
+                      <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                    
+                    {showYearDropdown && isEditing && (
+                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
+                        {years.map((year) => (
+                          <button
+                            key={year}
+                            type="button"
+                            onClick={() => handleYearSelect(year)}
+                            className="w-full px-4 py-2 text-left hover:bg-blue-50 hover:text-blue-700 focus:bg-blue-50 focus:text-blue-700 focus:outline-none transition-colors"
+                          >
+                            {year}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
