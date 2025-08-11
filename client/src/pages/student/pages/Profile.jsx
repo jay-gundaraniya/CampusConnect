@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { storage } from '../../services/api'
+import { storage } from '../../../services/api'
 
 function Profile() {
   const [user, setUser] = useState(null)
@@ -294,7 +294,7 @@ function Profile() {
                       onChange={handleInputChange}
                       disabled={!isEditing}
                       placeholder="Enter your phone number"
-                      className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+                      className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
                     />
                   </div>
                 </div>

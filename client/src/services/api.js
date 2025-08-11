@@ -98,6 +98,135 @@ export const api = {
     });
     return handleResponse(response);
   },
+
+  // Events API
+  getEvents: async (filters = {}) => {
+    const queryParams = new URLSearchParams(filters).toString();
+    const response = await fetch(`${API_BASE_URL}/events?${queryParams}`);
+    return handleResponse(response);
+  },
+
+  getEvent: async (eventId) => {
+    const response = await fetch(`${API_BASE_URL}/events/${eventId}`);
+    return handleResponse(response);
+  },
+
+  createEvent: async (eventData, token) => {
+    const response = await fetch(`${API_BASE_URL}/events`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify(eventData),
+    });
+    return handleResponse(response);
+  },
+
+  updateEvent: async (eventId, eventData, token) => {
+    const response = await fetch(`${API_BASE_URL}/events/${eventId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify(eventData),
+    });
+    return handleResponse(response);
+  },
+
+  deleteEvent: async (eventId, token) => {
+    const response = await fetch(`${API_BASE_URL}/events/${eventId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    return handleResponse(response);
+  },
+
+  registerForEvent: async (eventId, token) => {
+    const response = await fetch(`${API_BASE_URL}/events/${eventId}/register`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    return handleResponse(response);
+  },
+
+  unregisterFromEvent: async (eventId, token) => {
+    const response = await fetch(`${API_BASE_URL}/events/${eventId}/register`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    return handleResponse(response);
+  },
+
+  getCoordinatorEvents: async (token) => {
+    const response = await fetch(`${API_BASE_URL}/events/coordinator/me`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    return handleResponse(response);
+  },
+
+  getStudentEvents: async (token) => {
+    const response = await fetch(`${API_BASE_URL}/events/student/registered`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    return handleResponse(response);
+  },
+
+  // Certificates API
+  getCertificates: async (token) => {
+    const response = await fetch(`${API_BASE_URL}/certificates`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    return handleResponse(response);
+  },
+
+  getStudentCertificates: async (studentId, token) => {
+    const response = await fetch(`${API_BASE_URL}/certificates/student/${studentId}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    return handleResponse(response);
+  },
+
+  generateCertificates: async (eventId, grades, token) => {
+    const response = await fetch(`${API_BASE_URL}/certificates/generate/${eventId}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ grades }),
+    });
+    return handleResponse(response);
+  },
+
+  downloadCertificate: async (certificateId, token) => {
+    const response = await fetch(`${API_BASE_URL}/certificates/download/${certificateId}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    return handleResponse(response);
+  },
+
+  verifyCertificate: async (certificateId) => {
+    const response = await fetch(`${API_BASE_URL}/certificates/verify/${certificateId}`);
+    return handleResponse(response);
+  },
 };
 
 // Local storage helpers

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { FaCalendarAlt, FaMapMarkerAlt, FaUsers, FaSave, FaTimes } from 'react-icons/fa';
+import { api, storage } from '../../../services/api';
 
 function CreateEvent() {
   const [formData, setFormData] = useState({
@@ -13,17 +14,127 @@ function CreateEvent() {
     category: 'technology',
     requirements: '',
     contactEmail: '',
-    contactPhone: ''
+    contactPhone: '+91 '
   });
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
+  const [phoneError, setPhoneError] = useState('');
 
   const handleChange = (e) => {
+    const { name, value } = e.target;
+    
+    // Handle phone number with +91 prefix (same as student profile)
+    if (name === 'contactPhone') {
+      // Only allow numeric input and limit to 10 digits
+      const numericValue = value.replace(/\D/g, '').slice(0, 10);
+      setFormData(prev => ({
+        ...prev,
+        [name]: '+91 ' + numericValue
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
+    
+    // Clear phone error when user starts typing
+    if (name === 'contactPhone' && phoneError) {
+      setPhoneError('');
+    }
+  };
+
+  const handleCancel = () => {
     setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
+      title: '',
+      description: '',
+      date: '',
+      time: '',
+      location: '',
+      maxParticipants: '',
+      eventType: 'workshop',
+      category: 'technology',
+      requirements: '',
+      contactEmail: '',
+      contactPhone: '+91 '
     });
+    setError('');
+    setSuccess('');
+    setPhoneError('');
+  };
+
+  const validatePhone = (phone) => {
+    if (!phone) return '';
+    
+    // Remove +91 prefix and spaces to get just the digits
+    const digits = phone.replace('+91 ', '').replace(/\D/g, '');
+    
+    if (digits.length !== 10) {
+      return 'Phone number must be exactly 10 digits';
+    }
+    
+    return '';
+  };
+
+  const handlePhoneBlur = (e) => {
+    const phoneError = validatePhone(e.target.value);
+    setPhoneError(phoneError);
+  };
+
+  const validateForm = () => {
+    const errors = [];
+    
+    if (!formData.title.trim()) {
+      errors.push('Event title is required');
+    }
+    
+    if (!formData.description.trim()) {
+      errors.push('Event description is required');
+    }
+    
+    if (!formData.date) {
+      errors.push('Event date is required');
+    }
+    
+    if (!formData.time) {
+      errors.push('Event time is required');
+    }
+    
+    if (!formData.location.trim()) {
+      errors.push('Event location is required');
+    }
+    
+    // Check if date is in the future
+    if (formData.date && formData.time) {
+      const eventDateTime = new Date(formData.date + 'T' + formData.time);
+      const now = new Date();
+      if (eventDateTime <= now) {
+        errors.push('Event date and time must be in the future');
+      }
+    }
+    
+    // Check max participants
+    if (formData.maxParticipants && parseInt(formData.maxParticipants) <= 0) {
+      errors.push('Maximum participants must be greater than 0');
+    }
+    
+    // Validate contact email if provided
+    if (formData.contactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.contactEmail)) {
+      errors.push('Please enter a valid contact email address');
+    }
+    
+    // Validate contact phone if provided
+    if (formData.contactPhone) {
+      // Remove +91 prefix and spaces to get just the digits
+      const digits = formData.contactPhone.replace('+91 ', '').replace(/\D/g, '');
+      
+      if (digits.length !== 10) {
+        errors.push('Phone number must be exactly 10 digits');
+      }
+    }
+    
+    return errors;
   };
 
   const handleSubmit = async (e) => {
@@ -33,13 +144,36 @@ function CreateEvent() {
     setSuccess('');
 
     try {
-      // TODO: Implement API call to create event
-      console.log('Creating event:', formData);
+      // Check for phone validation error
+      if (phoneError) {
+        throw new Error('Please fix the phone number format before submitting');
+      }
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Validate form
+      const validationErrors = validateForm();
+      if (validationErrors.length > 0) {
+        throw new Error(validationErrors.join(', '));
+      }
+
+      // Get token from storage
+      const token = storage.getToken();
+      if (!token) {
+        throw new Error('Authentication required. Please log in again.');
+      }
+
+      // Prepare event data
+      const eventData = {
+        ...formData,
+        maxParticipants: formData.maxParticipants ? parseInt(formData.maxParticipants) : null,
+        date: new Date(formData.date + 'T' + formData.time).toISOString()
+      };
+
+      // Call API to create event
+      const response = await api.createEvent(eventData, token);
       
-      setSuccess('Event created successfully! It will be reviewed by admin.');
+      setSuccess(response.message || 'Event created successfully! It will be reviewed by admin.');
+      
+      // Reset form
       setFormData({
         title: '',
         description: '',
@@ -51,10 +185,10 @@ function CreateEvent() {
         category: 'technology',
         requirements: '',
         contactEmail: '',
-        contactPhone: ''
+        contactPhone: '+91 '
       });
     } catch (err) {
-      setError('Failed to create event. Please try again.');
+      setError(err.message || 'Failed to create event. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -191,6 +325,7 @@ function CreateEvent() {
                 id="date"
                 name="date"
                 required
+                min={new Date().toISOString().split('T')[0]}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 value={formData.date}
                 onChange={handleChange}
@@ -272,20 +407,31 @@ function CreateEvent() {
               />
             </div>
 
-            <div>
-              <label htmlFor="contactPhone" className="block text-sm font-medium text-gray-700 mb-2">
-                Contact Phone
-              </label>
-              <input
-                type="tel"
-                id="contactPhone"
-                name="contactPhone"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                value={formData.contactPhone}
-                onChange={handleChange}
-                placeholder="+1234567890"
-              />
-            </div>
+                                      <div>
+               <label htmlFor="contactPhone" className="block text-sm font-medium text-gray-700 mb-2">
+                 Contact Phone
+               </label>
+                               <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <span className="text-gray-500 text-sm">+91</span>
+                  </div>
+                  <input
+                    type="tel"
+                    id="contactPhone"
+                    name="contactPhone"
+                    value={formData.contactPhone.replace('+91 ', '')}
+                    onChange={handleChange}
+                    onBlur={handlePhoneBlur}
+                    placeholder="Enter phone number"
+                    className={`w-full pl-10 pr-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                      phoneError ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : 'border-gray-300'
+                    }`}
+                  />
+                </div>
+               {phoneError && (
+                 <p className="mt-1 text-sm text-red-600">{phoneError}</p>
+               )}
+             </div>
           </div>
         </div>
 
@@ -293,7 +439,9 @@ function CreateEvent() {
         <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">
           <button
             type="button"
-            className="flex items-center px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            onClick={handleCancel}
+            disabled={loading}
+            className="flex items-center px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
           >
             <FaTimes className="mr-2 h-4 w-4" />
             Cancel
@@ -303,8 +451,20 @@ function CreateEvent() {
             disabled={loading}
             className="flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
           >
-            <FaSave className="mr-2 h-4 w-4" />
-            {loading ? 'Creating...' : 'Create Event'}
+            {loading ? (
+              <>
+                <svg className="animate-spin -ml-1 mr-3 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Creating Event...
+              </>
+            ) : (
+              <>
+                <FaSave className="mr-2 h-4 w-4" />
+                Create Event
+              </>
+            )}
           </button>
         </div>
       </form>

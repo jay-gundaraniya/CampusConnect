@@ -2,11 +2,11 @@ import { Route, Navigate } from 'react-router-dom';
 import ProtectedRoute from '../components/ProtectedRoute';
 import DashboardRedirect from '../components/DashboardRedirect';
 import StudentLayout from '../pages/student/components/StudentLayout';
-import StudentDashboard from '../pages/student/StudentDashboard';
-import Events from '../pages/student/Events';
-import MyEvents from '../pages/student/MyEvents';
-import Certificates from '../pages/student/Certificates';
-import Profile from '../pages/student/Profile';
+import StudentDashboard from '../pages/student/pages/StudentDashboard';
+import Events from '../pages/student/pages/Events';
+import MyEvents from '../pages/student/pages/MyEvents';
+import Certificates from '../pages/student/pages/Certificates';
+import Profile from '../pages/student/pages/Profile';
 
 export const studentRoutes = [
   // Fallback route for /dashboard

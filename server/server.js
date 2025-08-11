@@ -40,6 +40,10 @@ const studentRoutes = require('./routes/student');
 app.use('/api/student', studentRoutes);
 const coordinatorRoutes = require('./routes/coordinator');
 app.use('/api/coordinator', coordinatorRoutes);
+const eventRoutes = require('./routes/events');
+app.use('/api/events', eventRoutes);
+const certificateRoutes = require('./routes/certificates');
+app.use('/api/certificates', certificateRoutes);
 
 // Middleware to verify JWT token
 const authenticateToken = (req, res, next) => {

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { storage } from '../../services/api'
+import { storage } from '../../../services/api'
 
 // Upcoming Event Timeline Component
 function UpcomingEventTimeline() {

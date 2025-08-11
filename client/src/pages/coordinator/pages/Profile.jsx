@@ -6,7 +6,7 @@ function Profile() {
   const [profile, setProfile] = useState({
     name: '',
     email: '',
-    phone: '',
+    phone: '+91 ',
     department: '',
     position: '',
     bio: '',
@@ -31,7 +31,7 @@ function Profile() {
         const mockProfile = {
           name: userData.name || 'Coordinator Name',
           email: userData.email || 'coordinator@example.com',
-          phone: '+1234567890',
+          phone: '+91 9876543210',
           department: 'Computer Science',
           position: 'Event Coordinator',
           bio: 'Experienced event coordinator with a passion for organizing engaging campus events and fostering student participation.',
@@ -47,10 +47,22 @@ function Profile() {
   };
 
   const handleChange = (e) => {
-    setProfile({
-      ...profile,
-      [e.target.name]: e.target.value
-    });
+    const { name, value } = e.target;
+    
+    // Handle phone number with +91 prefix (same as student profile)
+    if (name === 'phone') {
+      // Only allow numeric input and limit to 10 digits
+      const numericValue = value.replace(/\D/g, '').slice(0, 10);
+      setProfile(prev => ({
+        ...prev,
+        [name]: '+91 ' + numericValue
+      }));
+    } else {
+      setProfile(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
   };
 
   const handleAvatarChange = (e) => {
@@ -203,15 +215,21 @@ function Profile() {
                 <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
                   Phone Number
                 </label>
-                <input
-                  type="tel"
-                  id="phone"
-                  name="phone"
-                  value={profile.phone}
-                  onChange={handleChange}
-                  disabled={!isEditing}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-500"
-                />
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <span className="text-gray-500 text-sm">+91</span>
+                  </div>
+                  <input
+                    type="tel"
+                    id="phone"
+                    name="phone"
+                    value={profile.phone.replace('+91 ', '')}
+                    onChange={handleChange}
+                    disabled={!isEditing}
+                    placeholder="Enter phone number"
+                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-500"
+                  />
+                </div>
               </div>
 
               <div>
