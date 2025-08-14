@@ -4,6 +4,7 @@ import CoordinatorLayout from '../pages/coordinator/components/CoordinatorLayout
 import CoordinatorPanel from '../pages/coordinator/CoordinatorPanel';
 import Dashboard from '../pages/coordinator/pages/Dashboard';
 import CreateEvent from '../pages/coordinator/pages/CreateEvent';
+import EditEvent from '../pages/coordinator/pages/EditEvent';
 import ManageEvents from '../pages/coordinator/pages/ManageEvents';
 import Participants from '../pages/coordinator/pages/Participants';
 import AddStudent from '../pages/coordinator/pages/AddStudent';
@@ -29,6 +30,17 @@ const coordinatorRoutes = [
       <ProtectedRoute role="cordinator">
         <CoordinatorLayout>
           <CreateEvent />
+        </CoordinatorLayout>
+      </ProtectedRoute>
+    }
+  />,
+  <Route
+    key="coordinator-edit-event"
+    path="/coordinator/edit-event"
+    element={
+      <ProtectedRoute role="cordinator">
+        <CoordinatorLayout>
+          <EditEvent />
         </CoordinatorLayout>
       </ProtectedRoute>
     }

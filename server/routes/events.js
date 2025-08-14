@@ -26,6 +26,32 @@ router.get('/', async (req, res) => {
   }
 });
 
+// Get all events for admin (includes all statuses)
+router.get('/admin/all', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    console.log('Admin requesting events. User:', req.user);
+    const { status, category, eventType } = req.query;
+    let filter = {};
+    
+    if (status && status !== 'all') filter.status = status;
+    if (category && category !== 'all') filter.category = category;
+    if (eventType && eventType !== 'all') filter.eventType = eventType;
+    
+    console.log('Filter:', filter);
+    
+    const events = await Event.find(filter)
+      .populate('coordinator', 'name email')
+      .populate('participants.student', 'name email')
+      .sort({ createdAt: -1 });
+    
+    console.log(`Found ${events.length} events for admin`);
+    res.json({ events });
+  } catch (error) {
+    console.error('Error fetching admin events:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
 // Get event by ID
 router.get('/:id', async (req, res) => {
   try {
@@ -76,11 +102,15 @@ router.post('/', authenticateToken, async (req, res) => {
 // Update event (coordinator who created it)
 router.put('/:id', authenticateToken, async (req, res) => {
   try {
+    console.log('Update event request:', req.params.id, req.body, 'User:', req.user);
+    
     const event = await Event.findById(req.params.id);
     
     if (!event) {
       return res.status(404).json({ message: 'Event not found' });
     }
+    
+    console.log('Current event:', event);
     
     if (event.coordinator.toString() !== req.user.userId && req.user.role !== 'admin') {
       return res.status(403).json({ message: 'Not authorized to update this event' });
@@ -91,11 +121,23 @@ router.put('/:id', authenticateToken, async (req, res) => {
       return res.status(403).json({ message: 'Approved events can only be updated by admin' });
     }
     
+    // Prepare update data
+    let updateData = { ...req.body };
+    
+    // If coordinator is updating (not admin), reset status to pending
+    if (req.user.role !== 'admin') {
+      updateData.status = 'pending';
+    }
+    
+    console.log('Update data:', updateData);
+    
     const updatedEvent = await Event.findByIdAndUpdate(
       req.params.id,
-      { ...req.body, status: 'pending' }, // Reset to pending after update
+      updateData,
       { new: true }
     ).populate('coordinator', 'name email');
+    
+    console.log('Updated event:', updatedEvent);
     
     res.json({ 
       message: 'Event updated successfully',

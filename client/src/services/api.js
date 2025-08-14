@@ -106,6 +106,16 @@ export const api = {
     return handleResponse(response);
   },
 
+  getAdminEvents: async (filters = {}, token) => {
+    const queryParams = new URLSearchParams(filters).toString();
+    const response = await fetch(`${API_BASE_URL}/events/admin/all?${queryParams}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    return handleResponse(response);
+  },
+
   getEvent: async (eventId) => {
     const response = await fetch(`${API_BASE_URL}/events/${eventId}`);
     return handleResponse(response);

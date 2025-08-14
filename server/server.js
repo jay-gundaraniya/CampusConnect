@@ -189,25 +189,25 @@ app.get('/api/admin/secret', authenticateToken, requireAdmin, (req, res) => {
 });
 
 // TEMPORARY: Create an admin user (remove after first use!)
-// app.post('/api/admin/create', async (req, res) => {
-//   try {
-//     const { name, email, password } = req.body;
-//     if (!name || !email || !password) {
-//       return res.status(400).json({ message: 'Name, email, and password are required.' });
-//     }
-//     // Check if admin already exists
-//     const existing = await Admin.findOne({ email });
-//     if (existing) {
-//       return res.status(400).json({ message: 'Admin with this email already exists.' });
-//     }
-//     const hashedPassword = await bcrypt.hash(password, 12);
-//     const admin = new Admin({ name, email, password: hashedPassword });
-//     await admin.save();
-//     res.json({ message: 'Admin created!', admin: { name: admin.name, email: admin.email } });
-//   } catch (error) {
-//     res.status(500).json({ message: 'Error creating admin', error: error.message });
-//   }
-// });
+app.post('/api/admin/create', async (req, res) => {
+  try {
+    const { name, email, password } = req.body;
+    if (!name || !email || !password) {
+      return res.status(400).json({ message: 'Name, email, and password are required.' });
+    }
+    // Check if admin already exists
+    const existing = await Admin.findOne({ email });
+    if (existing) {
+      return res.status(400).json({ message: 'Admin with this email already exists.' });
+    }
+    const hashedPassword = await bcrypt.hash(password, 12);
+    const admin = new Admin({ name, email, password: hashedPassword });
+    await admin.save();
+    res.json({ message: 'Admin created!', admin: { name: admin.name, email: admin.email } });
+  } catch (error) {
+    res.status(500).json({ message: 'Error creating admin', error: error.message });
+  }
+});
 
 // Start server
 const PORT = process.env.PORT || 5000;
