@@ -1,11 +1,13 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { api, storage } from '../../services/api'
 import GoogleOAuth from '../../components/GoogleOAuth'
+import { useRole } from '../../contexts/RoleContext'
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 
 function Register() {
   const navigate = useNavigate()
+  const { updateUserData } = useRole()
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -20,12 +22,16 @@ function Register() {
   const [successMessage, setSuccessMessage] = useState('')
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const hasNavigated = useRef(false);
 
   useEffect(() => {
+    if (hasNavigated.current) return; // Prevent multiple navigations
+    
     const user = storage.getUser();
     if (user) {
+      hasNavigated.current = true;
       if (user.role === 'admin') navigate('/admin');
-      else if (user.role === 'coordinator' || user.role === 'cordinator') navigate('/coordinator');
+      else if (user.role === 'coordinator') navigate('/coordinator');
       else if (user.role === 'student') navigate('/student');
       else navigate('/dashboard');
     }
@@ -96,7 +102,7 @@ function Register() {
     try {
       const { confirmPassword, ...registrationData } = formData
       const response = await api.register(registrationData)
-      if (formData.role === 'cordinator') {
+      if (formData.role === 'coordinator') {
         setSuccessMessage(response.message || 'Your request has been sent successfully to admin.')
         // Do not log in or redirect
         return
@@ -104,15 +110,20 @@ function Register() {
       // Store token and user data
       storage.setToken(response.token)
       storage.setUser(response.user)
+      
+      // Update RoleContext with new user data
+      updateUserData(response.user)
+      
       // Redirect to dashboard or home page
-      if (response.user.role === 'admin') {
-        navigate('/admin')
-      } else if (response.user.role === 'coordinator') {
-        navigate('/coordinator')
-      } else if (response.user.role === 'student') {
-        navigate('/student')
+      const userRole = response.user.currentRole || response.user.role;
+      if (userRole === 'admin') {
+        navigate('/admin', { replace: true })
+      } else if (userRole === 'coordinator') {
+        navigate('/coordinator', { replace: true })
+      } else if (userRole === 'student') {
+        navigate('/student', { replace: true })
       } else {
-        navigate('/')
+        navigate('/', { replace: true })
       }
     } catch (err) {
       setApiError(err.message || 'Registration failed. Please try again.')
@@ -126,7 +137,7 @@ function Register() {
     const user = storage.getUser();
     if (user) {
       if (user.role === 'admin') navigate('/admin');
-      else if (user.role === 'coordinator' || user.role === 'cordinator') navigate('/coordinator');
+      else if (user.role === 'coordinator') navigate('/coordinator');
       else if (user.role === 'student') navigate('/student');
       else navigate('/dashboard');
     } else {
@@ -222,7 +233,7 @@ function Register() {
                 onChange={handleChange}
               >
                 <option value="student">Student</option>
-                <option value="cordinator">Event Coordinator</option>
+                <option value="coordinator">Event Coordinator</option>
               </select>
             </div>
 
@@ -294,7 +305,7 @@ function Register() {
                   Creating account...
                 </div>
               ) : (
-                formData.role === 'cordinator' ? 'Request for Coordinator' : 'Create Account'
+                formData.role === 'coordinator' ? 'Request for Coordinator' : 'Create Account'
               )}
             </button>
           </div>

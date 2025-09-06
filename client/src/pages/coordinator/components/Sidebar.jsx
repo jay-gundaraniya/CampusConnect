@@ -9,16 +9,25 @@ import {
   FaUser,
   FaSignOutAlt
 } from 'react-icons/fa';
+import RoleSwitcher from '../../../components/RoleSwitcher';
+import { storage } from '../../../services/api';
+import { useRole } from '../../../contexts/RoleContext';
 
 function Sidebar({ onLogout }) {
   const location = useLocation();
+  const { canSwitchRole } = useRole();
+  
+  // Get current user data to check permissions
+  const currentUser = storage.getUser();
+  const canPromoteStudents = currentUser && currentUser.defaultRole === 'coordinator';
+  const canCreateEvents = currentUser && currentUser.roles && currentUser.roles.includes('coordinator');
 
   const menuItems = [
     { path: '/coordinator', icon: FaTachometerAlt, label: 'Dashboard' },
-    { path: '/coordinator/create-event', icon: FaPlus, label: 'Create Event' },
+    ...(canCreateEvents ? [{ path: '/coordinator/create-event', icon: FaPlus, label: 'Create Event' }] : []),
     { path: '/coordinator/manage-events', icon: FaCalendarAlt, label: 'Manage Events' },
     { path: '/coordinator/participants', icon: FaUsers, label: 'Manage Participants' },
-    { path: '/coordinator/add-student', icon: FaUserPlus, label: 'Add Student' },
+    ...(canPromoteStudents ? [{ path: '/coordinator/add-student', icon: FaUserPlus, label: 'Add Student' }] : []),
     { path: '/coordinator/reports', icon: FaChartBar, label: 'Feedback & Reports' },
     { path: '/coordinator/profile', icon: FaUser, label: 'Profile' }
   ];
@@ -56,6 +65,18 @@ function Sidebar({ onLogout }) {
             );
           })}
         </nav>
+        
+        {/* Role Switcher - Only show if user can switch roles */}
+        {canSwitchRole && (
+          <div className="mt-6 pt-6 border-t border-gray-200">
+            <div className="px-4">
+              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
+                Switch Role
+              </label>
+              <RoleSwitcher />
+            </div>
+          </div>
+        )}
       </div>
       
       <div className="absolute bottom-6 left-6 right-6">

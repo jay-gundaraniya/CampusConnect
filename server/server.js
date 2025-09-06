@@ -29,9 +29,7 @@ mongoose.connect(config.MONGODB_URI)
 // JWT Secret
 const JWT_SECRET = config.JWT_SECRET;
 
-const Student = require('./models/Student');
-const Coordinator = require('./models/Coordinator');
-const Admin = require('./models/Admin');
+const User = require('./models/User');
 const authRoutes = require('./routes/auth');
 app.use('/api/auth', authRoutes);
 const adminRoutes = require('./routes/admin');
@@ -64,7 +62,7 @@ const authenticateToken = (req, res, next) => {
 };
 
 function requireAdmin(req, res, next) {
-  if (!req.user || req.user.role !== 'admin') {
+  if (!req.user || !req.user.roles || !req.user.roles.includes('admin')) {
     return res.status(403).json({ message: 'Admin access required' });
   }
   next();
@@ -80,7 +78,7 @@ app.get('/api/health', (req, res) => {
 // Get current user profile
 app.get('/api/auth/profile', authenticateToken, async (req, res) => {
   try {
-    const user = await Admin.findById(req.user.userId).select('-password');
+    const user = await User.findById(req.user.userId).select('-password');
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -94,15 +92,14 @@ app.get('/api/auth/profile', authenticateToken, async (req, res) => {
 // Update user profile
 app.put('/api/auth/profile', authenticateToken, async (req, res) => {
   try {
-    const { name, role } = req.body;
-    const user = await Admin.findById(req.user.userId);
+    const { name } = req.body;
+    const user = await User.findById(req.user.userId);
     
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
 
     if (name) user.name = name;
-    if (role) user.role = role;
 
     await user.save();
 
@@ -110,7 +107,9 @@ app.put('/api/auth/profile', authenticateToken, async (req, res) => {
       _id: user._id,
       name: user.name,
       email: user.email,
-      role: user.role,
+      roles: user.roles,
+      defaultRole: user.defaultRole,
+      currentRole: user.currentRole,
       avatar: user.avatar,
       createdAt: user.createdAt
     };
@@ -130,7 +129,7 @@ app.put('/api/auth/profile', authenticateToken, async (req, res) => {
 app.post('/api/auth/forgot-password', async (req, res) => {
   try {
     const { email } = req.body;
-    const user = await Admin.findOne({ email });
+    const user = await User.findOne({ email });
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -163,7 +162,7 @@ app.post('/api/auth/reset-password', async (req, res) => {
 
     // Verify token
     const decoded = jwt.verify(token, JWT_SECRET);
-    const user = await Admin.findById(decoded.userId);
+    const user = await User.findById(decoded.userId);
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -196,12 +195,19 @@ app.post('/api/admin/create', async (req, res) => {
       return res.status(400).json({ message: 'Name, email, and password are required.' });
     }
     // Check if admin already exists
-    const existing = await Admin.findOne({ email });
+    const existing = await User.findOne({ email });
     if (existing) {
-      return res.status(400).json({ message: 'Admin with this email already exists.' });
+      return res.status(400).json({ message: 'User with this email already exists.' });
     }
     const hashedPassword = await bcrypt.hash(password, 12);
-    const admin = new Admin({ name, email, password: hashedPassword });
+    const admin = new User({ 
+      name, 
+      email, 
+      password: hashedPassword,
+      roles: ['admin'],
+      defaultRole: 'admin',
+      currentRole: 'admin'
+    });
     await admin.save();
     res.json({ message: 'Admin created!', admin: { name: admin.name, email: admin.email } });
   } catch (error) {

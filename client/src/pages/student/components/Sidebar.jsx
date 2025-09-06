@@ -7,9 +7,12 @@ import {
   FaUser,
   FaSignOutAlt
 } from 'react-icons/fa';
+import RoleSwitcher from '../../../components/RoleSwitcher';
+import { useRole } from '../../../contexts/RoleContext';
 
 function Sidebar({ onLogout }) {
   const location = useLocation();
+  const { canSwitchRole } = useRole();
 
   const menuItems = [
     { path: '/student/dashboard', icon: FaTachometerAlt, label: 'Dashboard' },
@@ -52,6 +55,18 @@ function Sidebar({ onLogout }) {
             );
           })}
         </nav>
+        
+        {/* Role Switcher - Only show if user can switch roles */}
+        {canSwitchRole && (
+          <div className="mt-6 pt-6 border-t border-gray-200">
+            <div className="px-4">
+              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
+                Switch Role
+              </label>
+              <RoleSwitcher />
+            </div>
+          </div>
+        )}
       </div>
       
       <div className="absolute bottom-6 left-6 right-6">

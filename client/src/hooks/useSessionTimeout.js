@@ -4,7 +4,7 @@ import { storage } from '../services/api';
 
 const TIMEOUT_DURATIONS = {
   admin: 30 * 60 * 1000, // 30 minutes
-  cordinator: 45 * 60 * 1000, // 45 minutes
+  coordinator: 45 * 60 * 1000, // 45 minutes
   student: 60 * 60 * 1000, // 60 minutes
   default: 30 * 60 * 1000 // 30 minutes default
 };

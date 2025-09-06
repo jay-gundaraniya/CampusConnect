@@ -1,5 +1,6 @@
 const express = require('express');
 const Event = require('../models/Event');
+const User = require('../models/User');
 const authenticateToken = require('../middleware/authenticateToken');
 const requireAdmin = require('../middleware/requireAdmin');
 
@@ -73,7 +74,13 @@ router.get('/:id', async (req, res) => {
 // Create new event (coordinator only)
 router.post('/', authenticateToken, async (req, res) => {
   try {
-    if (req.user.role !== 'cordinator') {
+    // Fetch user from database to get current roles
+    const user = await User.findById(req.user.userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    if (!user.roles || !user.roles.includes('coordinator')) {
       return res.status(403).json({ message: 'Only coordinators can create events' });
     }
     
@@ -112,12 +119,21 @@ router.put('/:id', authenticateToken, async (req, res) => {
     
     console.log('Current event:', event);
     
-    if (event.coordinator.toString() !== req.user.userId && req.user.role !== 'admin') {
+    // Fetch user from database to get current roles
+    const user = await User.findById(req.user.userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    const isAdmin = user.roles && user.roles.includes('admin');
+    const isCoordinator = user.roles && user.roles.includes('coordinator');
+    
+    if (event.coordinator.toString() !== req.user.userId && !isAdmin) {
       return res.status(403).json({ message: 'Not authorized to update this event' });
     }
     
     // If event is approved, only admin can update
-    if (event.status === 'approved' && req.user.role !== 'admin') {
+    if (event.status === 'approved' && !isAdmin) {
       return res.status(403).json({ message: 'Approved events can only be updated by admin' });
     }
     
@@ -125,7 +141,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
     let updateData = { ...req.body };
     
     // If coordinator is updating (not admin), reset status to pending
-    if (req.user.role !== 'admin') {
+    if (!isAdmin) {
       updateData.status = 'pending';
     }
     
@@ -158,7 +174,15 @@ router.delete('/:id', authenticateToken, async (req, res) => {
       return res.status(404).json({ message: 'Event not found' });
     }
     
-    if (event.coordinator.toString() !== req.user.userId && req.user.role !== 'admin') {
+    // Fetch user from database to get current roles
+    const user = await User.findById(req.user.userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    const isAdmin = user.roles && user.roles.includes('admin');
+    
+    if (event.coordinator.toString() !== req.user.userId && !isAdmin) {
       return res.status(403).json({ message: 'Not authorized to delete this event' });
     }
     
@@ -174,7 +198,13 @@ router.delete('/:id', authenticateToken, async (req, res) => {
 // Register for event (student only)
 router.post('/:id/register', authenticateToken, async (req, res) => {
   try {
-    if (req.user.role !== 'student') {
+    // Fetch user from database to get current roles
+    const user = await User.findById(req.user.userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    if (!user.roles || !user.roles.includes('student')) {
       return res.status(403).json({ message: 'Only students can register for events' });
     }
     
@@ -220,7 +250,13 @@ router.post('/:id/register', authenticateToken, async (req, res) => {
 // Unregister from event (student only)
 router.delete('/:id/register', authenticateToken, async (req, res) => {
   try {
-    if (req.user.role !== 'student') {
+    // Fetch user from database to get current roles
+    const user = await User.findById(req.user.userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    if (!user.roles || !user.roles.includes('student')) {
       return res.status(403).json({ message: 'Only students can unregister from events' });
     }
     
@@ -252,7 +288,14 @@ router.delete('/:id/register', authenticateToken, async (req, res) => {
 // Get events by coordinator
 router.get('/coordinator/me', authenticateToken, async (req, res) => {
   try {
-    if (req.user.role !== 'cordinator') {
+    // Fetch user from database to get current roles
+    const user = await User.findById(req.user.userId);
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    if (!user.roles || !user.roles.includes('coordinator')) {
       return res.status(403).json({ message: 'Only coordinators can access this route' });
     }
     
@@ -270,7 +313,14 @@ router.get('/coordinator/me', authenticateToken, async (req, res) => {
 // Get events registered by student
 router.get('/student/registered', authenticateToken, async (req, res) => {
   try {
-    if (req.user.role !== 'student') {
+    // Fetch user from database to get current roles
+    const user = await User.findById(req.user.userId);
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    if (!user.roles || !user.roles.includes('student')) {
       return res.status(403).json({ message: 'Only students can access this route' });
     }
     

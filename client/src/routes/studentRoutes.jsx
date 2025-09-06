@@ -9,12 +9,6 @@ import Certificates from '../pages/student/pages/Certificates';
 import Profile from '../pages/student/pages/Profile';
 
 export const studentRoutes = [
-  // Fallback route for /dashboard
-  <Route
-    key="dashboard-fallback"
-    path="/dashboard"
-    element={<DashboardRedirect />}
-  />,
   <Route
     key="student-layout"
     path="/student"

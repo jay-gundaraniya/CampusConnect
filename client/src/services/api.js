@@ -237,6 +237,53 @@ export const api = {
     const response = await fetch(`${API_BASE_URL}/certificates/verify/${certificateId}`);
     return handleResponse(response);
   },
+
+  // Role switching
+  switchRole: async (role, token) => {
+    const response = await fetch(`${API_BASE_URL}/auth/switch-role`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ role }),
+    });
+    return handleResponse(response);
+  },
+
+  // Coordinator management
+  getStudents: async (token) => {
+    const response = await fetch(`${API_BASE_URL}/coordinator/students`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    return handleResponse(response);
+  },
+
+  promoteStudent: async (studentId, token) => {
+    const response = await fetch(`${API_BASE_URL}/coordinator/promote-student`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ studentId }),
+    });
+    return handleResponse(response);
+  },
+
+  demoteCoordinator: async (userId, token) => {
+    const response = await fetch(`${API_BASE_URL}/coordinator/demote-coordinator`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ userId }),
+    });
+    return handleResponse(response);
+  },
 };
 
 // Local storage helpers

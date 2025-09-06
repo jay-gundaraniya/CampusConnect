@@ -1,11 +1,13 @@
 import { useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api, storage } from '../services/api'
+import { useRole } from '../contexts/RoleContext'
 
 const GOOGLE_CLIENT_ID = '755321876430-v6f6spuhc6ggb4cnn856kqh2r11rfhsu.apps.googleusercontent.com'
 
 function GoogleOAuth({ onSuccess, onError, buttonText = "Continue with Google", disabled = false }) {
   const navigate = useNavigate()
+  const { updateUserData } = useRole()
   const googleButtonRef = useRef(null)
   const googleInitialized = useRef(false)
 
@@ -89,18 +91,22 @@ function GoogleOAuth({ onSuccess, onError, buttonText = "Continue with Google", 
       storage.setToken(result.token)
       storage.setUser(result.user)
       
+      // Update RoleContext with new user data
+      updateUserData(result.user)
+      
       // Call success callback or navigate
       if (onSuccess) {
         onSuccess(result)
       } else {
         const user = storage.getUser();
     if (user) {
-      if (user.role === 'admin') navigate('/admin');
-      else if (user.role === 'coordinator' || user.role === 'cordinator') navigate('/coordinator');
-      else if (user.role === 'student') navigate('/student');
-      else navigate('/dashboard');
+      const userRole = user.currentRole || user.role;
+      if (userRole === 'admin') navigate('/admin', { replace: true });
+      else if (userRole === 'coordinator') navigate('/coordinator', { replace: true });
+      else if (userRole === 'student') navigate('/student', { replace: true });
+      else navigate('/dashboard', { replace: true });
     } else {
-      navigate('/')
+      navigate('/', { replace: true })
     }
       }
       

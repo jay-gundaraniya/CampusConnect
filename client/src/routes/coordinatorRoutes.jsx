@@ -16,7 +16,7 @@ const coordinatorRoutes = [
     key="coordinator-dashboard"
     path="/coordinator"
     element={
-      <ProtectedRoute role="cordinator">
+      <ProtectedRoute role="coordinator">
         <CoordinatorLayout>
           <Dashboard />
         </CoordinatorLayout>
@@ -27,7 +27,7 @@ const coordinatorRoutes = [
     key="coordinator-create-event"
     path="/coordinator/create-event"
     element={
-      <ProtectedRoute role="cordinator">
+      <ProtectedRoute role="coordinator">
         <CoordinatorLayout>
           <CreateEvent />
         </CoordinatorLayout>
@@ -38,7 +38,7 @@ const coordinatorRoutes = [
     key="coordinator-edit-event"
     path="/coordinator/edit-event"
     element={
-      <ProtectedRoute role="cordinator">
+      <ProtectedRoute role="coordinator">
         <CoordinatorLayout>
           <EditEvent />
         </CoordinatorLayout>
@@ -49,7 +49,7 @@ const coordinatorRoutes = [
     key="coordinator-manage-events"
     path="/coordinator/manage-events"
     element={
-      <ProtectedRoute role="cordinator">
+      <ProtectedRoute role="coordinator">
         <CoordinatorLayout>
           <ManageEvents />
         </CoordinatorLayout>
@@ -60,7 +60,7 @@ const coordinatorRoutes = [
     key="coordinator-participants"
     path="/coordinator/participants"
     element={
-      <ProtectedRoute role="cordinator">
+      <ProtectedRoute role="coordinator">
         <CoordinatorLayout>
           <Participants />
         </CoordinatorLayout>
@@ -71,7 +71,7 @@ const coordinatorRoutes = [
     key="coordinator-add-student"
     path="/coordinator/add-student"
     element={
-      <ProtectedRoute role="cordinator">
+      <ProtectedRoute role="coordinator">
         <CoordinatorLayout>
           <AddStudent />
         </CoordinatorLayout>
@@ -82,7 +82,7 @@ const coordinatorRoutes = [
     key="coordinator-reports"
     path="/coordinator/reports"
     element={
-      <ProtectedRoute role="cordinator">
+      <ProtectedRoute role="coordinator">
         <CoordinatorLayout>
           <Reports />
         </CoordinatorLayout>
@@ -93,7 +93,7 @@ const coordinatorRoutes = [
     key="coordinator-profile"
     path="/coordinator/profile"
     element={
-      <ProtectedRoute role="cordinator">
+      <ProtectedRoute role="coordinator">
         <CoordinatorLayout>
           <Profile />
         </CoordinatorLayout>

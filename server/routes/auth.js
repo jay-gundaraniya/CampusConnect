@@ -1,9 +1,7 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const Student = require('../models/Student');
-const Coordinator = require('../models/Coordinator');
-const Admin = require('../models/Admin');
+const User = require('../models/User');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const config = require('../config');
@@ -33,22 +31,23 @@ const authenticateToken = (req, res, next) => {
 router.post('/register', async (req, res) => {
   try {
     const { name, email, password, role } = req.body;
-    // Check if user already exists in any collection or as a pending request
-    const [student, coordinator, admin, pendingRequest] = await Promise.all([
-      Student.findOne({ email }),
-      Coordinator.findOne({ email }),
-      Admin.findOne({ email }),
-      CoordinatorRequest.findOne({ email, status: 'pending' })
-    ]);
-    if (student || coordinator || admin) {
+    
+    // Check if user already exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
       return res.status(400).json({ message: 'A user with this email already exists.' });
     }
+
+    // Check for pending coordinator request
+    const pendingRequest = await CoordinatorRequest.findOne({ email, status: 'pending' });
     if (pendingRequest) {
       return res.status(400).json({ message: 'There is already a pending coordinator request for this email.' });
     }
+
     const saltRounds = 12;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
-    if (role === 'cordinator') {
+
+    if (role === 'coordinator') {
       // Create a pending coordinator request
       const request = new CoordinatorRequest({ name, email, password: hashedPassword });
       await request.save();
@@ -56,28 +55,49 @@ router.post('/register', async (req, res) => {
         message: 'Your request has been sent to admin for approval. You will be notified once approved.'
       });
     }
-    let Model, userRole;
+
+    // Determine roles and default role
+    let roles, defaultRole;
     if (role === 'admin') {
-      Model = Admin;
-      userRole = 'admin';
+      roles = ['admin'];
+      defaultRole = 'admin';
     } else {
-      Model = Student;
-      userRole = 'student';
+      roles = ['student'];
+      defaultRole = 'student';
     }
-    const user = new Model({ name, email, password: hashedPassword });
+
+    const user = new User({ 
+      name, 
+      email, 
+      password: hashedPassword,
+      roles,
+      defaultRole,
+      currentRole: defaultRole
+    });
     await user.save();
+
     const token = jwt.sign(
-      { userId: user._id, email: user.email, role: userRole },
+      { 
+        userId: user._id, 
+        email: user.email, 
+        role: user.currentRole,
+        roles: user.roles,
+        defaultRole: user.defaultRole
+      },
       JWT_SECRET,
       { expiresIn: '7d' }
     );
+
     const userResponse = {
       _id: user._id,
       name: user.name,
       email: user.email,
-      role: userRole,
+      role: user.currentRole,
+      roles: user.roles,
+      defaultRole: user.defaultRole,
       createdAt: user.createdAt
     };
+
     res.status(201).json({
       message: 'User registered successfully',
       user: userResponse,
@@ -93,36 +113,44 @@ router.post('/register', async (req, res) => {
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-    let user = await Admin.findOne({ email });
-    let userRole = 'admin';
-    if (!user) {
-      user = await Coordinator.findOne({ email });
-      userRole = 'cordinator';
-    }
-    if (!user) {
-      user = await Student.findOne({ email });
-      userRole = 'student';
-    }
+    
+    const user = await User.findOne({ email });
     if (!user) {
       return res.status(401).json({ message: 'Invalid email or password' });
     }
+
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
       return res.status(401).json({ message: 'Invalid email or password' });
     }
+
+    // Set current role to default role on login
+    user.currentRole = user.defaultRole;
+    await user.save();
+
     const token = jwt.sign(
-      { userId: user._id, email: user.email, role: userRole },
+      { 
+        userId: user._id, 
+        email: user.email, 
+        role: user.currentRole,
+        roles: user.roles,
+        defaultRole: user.defaultRole
+      },
       JWT_SECRET,
       { expiresIn: '7d' }
     );
+
     const userResponse = {
       _id: user._id,
       name: user.name,
       email: user.email,
-      role: userRole,
+      role: user.currentRole,
+      roles: user.roles,
+      defaultRole: user.defaultRole,
       avatar: user.avatar,
       createdAt: user.createdAt
     };
+
     res.json({
       message: 'Login successful',
       user: userResponse,
@@ -138,49 +166,71 @@ router.post('/login', async (req, res) => {
 router.post('/google', async (req, res) => {
   try {
     const { googleId, name, email, avatar, role } = req.body;
-    let Model, userRole;
-    if (role === 'cordinator') {
-      Model = Coordinator;
-      userRole = 'cordinator';
-    } else if (role === 'admin') {
-      Model = Admin;
-      userRole = 'admin';
-    } else {
-      Model = Student;
-      userRole = 'student';
-    }
-    let user = await Model.findOne({ googleId });
+    
+    let user = await User.findOne({ googleId });
     if (!user) {
-      user = await Model.findOne({ email });
+      user = await User.findOne({ email });
       if (user) {
+        // Update existing user with Google info
         user.googleId = googleId;
         user.avatar = avatar;
         await user.save();
       } else {
-        user = new Model({
+        // Create new user
+        let roles, defaultRole;
+        if (role === 'coordinator') {
+          roles = ['coordinator', 'student'];
+          defaultRole = 'coordinator';
+        } else if (role === 'admin') {
+          roles = ['admin'];
+          defaultRole = 'admin';
+        } else {
+          roles = ['student'];
+          defaultRole = 'student';
+        }
+
+        user = new User({
           name,
           email,
           googleId,
           avatar,
           password: 'google-auth-' + Math.random().toString(36).substr(2, 9),
+          roles,
+          defaultRole,
+          currentRole: defaultRole,
           isEmailVerified: true
         });
         await user.save();
       }
     }
+
+    // Set current role to default role
+    user.currentRole = user.defaultRole;
+    await user.save();
+
     const token = jwt.sign(
-      { userId: user._id, email: user.email, role: userRole },
+      { 
+        userId: user._id, 
+        email: user.email, 
+        role: user.currentRole,
+        roles: user.roles,
+        defaultRole: user.defaultRole
+      },
       JWT_SECRET,
       { expiresIn: '7d' }
     );
+
     const userResponse = {
       _id: user._id,
       name: user.name,
       email: user.email,
-      role: userRole,
+      role: user.currentRole,
+      roles: user.roles,
+      defaultRole: user.defaultRole,
       avatar: user.avatar,
       createdAt: user.createdAt
     };
+
     res.json({
       message: 'Google authentication successful',
       user: userResponse,
@@ -192,10 +242,10 @@ router.post('/google', async (req, res) => {
   }
 });
 
-// Profile route (admin only for now)
+// Profile route
 router.get('/profile', authenticateToken, async (req, res) => {
   try {
-    const user = await Admin.findById(req.user.userId).select('-password');
+    const user = await User.findById(req.user.userId).select('-password');
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -206,22 +256,23 @@ router.get('/profile', authenticateToken, async (req, res) => {
   }
 });
 
-// Update profile (admin only for now)
+// Update profile
 router.put('/profile', authenticateToken, async (req, res) => {
   try {
-    const { name, role } = req.body;
-    const user = await Admin.findById(req.user.userId);
+    const { name } = req.body;
+    const user = await User.findById(req.user.userId);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
     if (name) user.name = name;
-    if (role) user.role = role;
     await user.save();
     const userResponse = {
       _id: user._id,
       name: user.name,
       email: user.email,
-      role: user.role,
+      role: user.currentRole,
+      roles: user.roles,
+      defaultRole: user.defaultRole,
       avatar: user.avatar,
       createdAt: user.createdAt
     };
@@ -235,23 +286,68 @@ router.put('/profile', authenticateToken, async (req, res) => {
   }
 });
 
+// Switch role route
+router.post('/switch-role', authenticateToken, async (req, res) => {
+  try {
+    const { role } = req.body;
+    const user = await User.findById(req.user.userId);
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (!user.roles.includes(role)) {
+      return res.status(400).json({ message: 'You do not have permission to switch to this role' });
+    }
+
+    user.currentRole = role;
+    await user.save();
+
+    // Generate new token with updated role
+    const token = jwt.sign(
+      { 
+        userId: user._id, 
+        email: user.email, 
+        role: user.currentRole,
+        roles: user.roles,
+        defaultRole: user.defaultRole
+      },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    const userResponse = {
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.currentRole,
+      roles: user.roles,
+      defaultRole: user.defaultRole,
+      avatar: user.avatar,
+      createdAt: user.createdAt
+    };
+
+    res.json({
+      message: 'Role switched successfully',
+      user: userResponse,
+      token
+    });
+  } catch (error) {
+    console.error('Role switch error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
 // Forgot password (all roles)
 router.post('/forgot-password', async (req, res) => {
   try {
     const { email } = req.body;
-    let user = await Admin.findOne({ email });
-    let userRole = 'admin';
-    if (!user) {
-      user = await Coordinator.findOne({ email });
-      userRole = 'cordinator';
-    }
-    if (!user) {
-      user = await Student.findOne({ email });
-      userRole = 'student';
-    }
+    const user = await User.findOne({ email });
+    
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
+    
     // Generate token
     const token = crypto.randomBytes(32).toString('hex');
     user.resetPasswordToken = token;
@@ -284,19 +380,15 @@ router.post('/forgot-password', async (req, res) => {
 router.post('/reset-password', async (req, res) => {
   try {
     const { token, newPassword } = req.body;
-    let user = await Admin.findOne({ resetPasswordToken: token, resetPasswordExpires: { $gt: Date.now() } });
-    let userRole = 'admin';
-    if (!user) {
-      user = await Coordinator.findOne({ resetPasswordToken: token, resetPasswordExpires: { $gt: Date.now() } });
-      userRole = 'cordinator';
-    }
-    if (!user) {
-      user = await Student.findOne({ resetPasswordToken: token, resetPasswordExpires: { $gt: Date.now() } });
-      userRole = 'student';
-    }
+    const user = await User.findOne({ 
+      resetPasswordToken: token, 
+      resetPasswordExpires: { $gt: Date.now() } 
+    });
+    
     if (!user) {
       return res.status(400).json({ message: 'Invalid or expired reset token' });
     }
+    
     const saltRounds = 12;
     const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
     user.password = hashedPassword;
@@ -337,18 +429,31 @@ router.post('/handle-coordinator-request', authenticateToken, async (req, res) =
       return res.status(404).json({ message: 'Request not found or already handled' });
     }
     if (action === 'approve') {
-      // Create Coordinator account
-      const Coordinator = require('../models/Coordinator');
-      const exists = await Coordinator.findOne({ email: request.email });
-      if (exists) {
-        return res.status(400).json({ message: 'A coordinator with this email already exists.' });
+      // Check if user already exists
+      let user = await User.findOne({ email: request.email });
+      if (user) {
+        // Update existing user to include coordinator role
+        if (!user.roles.includes('coordinator')) {
+          user.roles.push('coordinator');
+          if (user.defaultRole === 'student') {
+            user.defaultRole = 'coordinator';
+            user.currentRole = 'coordinator';
+          }
+          await user.save();
+        }
+      } else {
+        // Create new user with coordinator and student roles
+        user = new User({
+          name: request.name,
+          email: request.email,
+          password: request.password, // already hashed
+          roles: ['coordinator', 'student'],
+          defaultRole: 'coordinator',
+          currentRole: 'coordinator'
+        });
+        await user.save();
       }
-      const newCoordinator = new Coordinator({
-        name: request.name,
-        email: request.email,
-        password: request.password // already hashed
-      });
-      await newCoordinator.save();
+      
       request.status = 'approved';
       await request.save();
       await CoordinatorRequest.findByIdAndDelete(requestId); // remove after approval
@@ -407,8 +512,7 @@ router.get('/coordinator-count', authenticateToken, async (req, res) => {
     if (req.user.role !== 'admin') {
       return res.status(403).json({ message: 'Admin access required' });
     }
-    const Coordinator = require('../models/Coordinator');
-    const count = await Coordinator.countDocuments();
+    const count = await User.countDocuments({ roles: 'coordinator' });
     res.json({ count });
   } catch (error) {
     console.error('Error fetching coordinator count:', error);
@@ -422,8 +526,7 @@ router.get('/student-count', authenticateToken, async (req, res) => {
     if (req.user.role !== 'admin') {
       return res.status(403).json({ message: 'Admin access required' });
     }
-    const Student = require('../models/Student');
-    const count = await Student.countDocuments();
+    const count = await User.countDocuments({ roles: 'student' });
     res.json({ count });
   } catch (error) {
     console.error('Error fetching student count:', error);
@@ -437,8 +540,7 @@ router.get('/coordinators', authenticateToken, async (req, res) => {
     if (req.user.role !== 'admin') {
       return res.status(403).json({ message: 'Admin access required' });
     }
-    const Coordinator = require('../models/Coordinator');
-    const coordinators = await Coordinator.find({}, '-password'); // exclude password
+    const coordinators = await User.find({ roles: 'coordinator' }, '-password'); // exclude password
     res.json({ coordinators });
   } catch (error) {
     console.error('Error fetching coordinators:', error);
@@ -452,12 +554,26 @@ router.delete('/coordinator/:id', authenticateToken, async (req, res) => {
     if (req.user.role !== 'admin') {
       return res.status(403).json({ message: 'Admin access required' });
     }
-    const Coordinator = require('../models/Coordinator');
-    const deleted = await Coordinator.findByIdAndDelete(req.params.id);
-    if (!deleted) {
+    const user = await User.findById(req.params.id);
+    if (!user || !user.roles.includes('coordinator')) {
       return res.status(404).json({ message: 'Coordinator not found' });
     }
-    res.json({ message: 'Coordinator deleted successfully' });
+    
+    // Remove coordinator role
+    user.roles = user.roles.filter(role => role !== 'coordinator');
+    
+    // If coordinator was the default role, set a new default
+    if (user.defaultRole === 'coordinator') {
+      user.defaultRole = user.roles[0] || 'student';
+    }
+    
+    // If coordinator was the current role, switch to default
+    if (user.currentRole === 'coordinator') {
+      user.currentRole = user.defaultRole;
+    }
+    
+    await user.save();
+    res.json({ message: 'Coordinator role removed successfully' });
   } catch (error) {
     console.error('Error deleting coordinator:', error);
     res.status(500).json({ message: 'Internal server error', error: error.message });

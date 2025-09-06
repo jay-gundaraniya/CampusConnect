@@ -47,13 +47,13 @@ const eventSchema = new mongoose.Schema({
   },
   coordinator: { 
     type: mongoose.Schema.Types.ObjectId, 
-    ref: 'Coordinator', 
+    ref: 'User', 
     required: true 
   },
   participants: [{
     student: { 
       type: mongoose.Schema.Types.ObjectId, 
-      ref: 'Student' 
+      ref: 'User' 
     },
     registeredAt: { 
       type: Date, 

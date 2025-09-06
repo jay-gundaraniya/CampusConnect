@@ -1,11 +1,13 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { api, storage } from '../../services/api'
 import GoogleOAuth from '../../components/GoogleOAuth'
+import { useRole } from '../../contexts/RoleContext'
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 
 function Login() {
   const navigate = useNavigate()
+  const { updateUserData } = useRole()
   const [formData, setFormData] = useState({
     email: '',
     password: ''
@@ -14,14 +16,19 @@ function Login() {
   const [error, setError] = useState('')
   const [showPassword, setShowPassword] = useState(false);
   const [emailError, setEmailError] = useState('');
+  const hasNavigated = useRef(false);
 
   useEffect(() => {
+    if (hasNavigated.current) return; // Prevent multiple navigations
+    
     const user = storage.getUser();
     if (user) {
-      if (user.role === 'admin') navigate('/admin');
-      else if (user.role === 'coordinator' || user.role === 'cordinator') navigate('/coordinator');
-      else if (user.role === 'student') navigate('/student');
-      else navigate('/dashboard');
+      hasNavigated.current = true;
+      const userRole = user.currentRole || user.role;
+      if (userRole === 'admin') navigate('/admin', { replace: true });
+      else if (userRole === 'coordinator') navigate('/coordinator', { replace: true });
+      else if (userRole === 'student') navigate('/student', { replace: true });
+      else navigate('/dashboard', { replace: true });
     }
   }, [navigate]);
 
@@ -63,15 +70,19 @@ function Login() {
       storage.setToken(response.token)
       storage.setUser(response.user)
       
+      // Update RoleContext with new user data
+      updateUserData(response.user)
+      
       // Role-based redirect
-      if (response.user.role === 'admin') {
-        navigate('/admin')
-      } else if (response.user.role === 'coordinator' || response.user.role === 'cordinator') {
-        navigate('/coordinator')
-      } else if (response.user.role === 'student') {
-        navigate('/student')
+      const userRole = response.user.currentRole || response.user.role;
+      if (userRole === 'admin') {
+        navigate('/admin', { replace: true })
+      } else if (userRole === 'coordinator') {
+        navigate('/coordinator', { replace: true })
+      } else if (userRole === 'student') {
+        navigate('/student', { replace: true })
       } else {
-        navigate('/')
+        navigate('/', { replace: true })
       }
     } catch (err) {
       setError(err.message || 'Login failed. Please try again.')
@@ -84,12 +95,13 @@ function Login() {
     // Google OAuth success is handled in the GoogleOAuth component
     const user = storage.getUser();
     if (user) {
-      if (user.role === 'admin') navigate('/admin');
-      else if (user.role === 'coordinator' || user.role === 'cordinator') navigate('/coordinator');
-      else if (user.role === 'student') navigate('/student');
-      else navigate('/dashboard');
+      const userRole = user.currentRole || user.role;
+      if (userRole === 'admin') navigate('/admin', { replace: true });
+      else if (userRole === 'coordinator') navigate('/coordinator', { replace: true });
+      else if (userRole === 'student') navigate('/student', { replace: true });
+      else navigate('/dashboard', { replace: true });
     } else {
-      navigate('/')
+      navigate('/', { replace: true })
     }
   }
 
