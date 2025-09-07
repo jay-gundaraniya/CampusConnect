@@ -1,71 +1,41 @@
 import { useState, useEffect } from 'react'
+import { api, storage } from '../../../services/api'
 
 function MyEvents() {
   const [myEvents, setMyEvents] = useState([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('upcoming')
+  const [unregisterLoading, setUnregisterLoading] = useState(new Set())
+  const [viewingEvent, setViewingEvent] = useState(null)
 
   useEffect(() => {
-    // Load my events data
-    setMyEvents([
-      {
-        id: 1,
-        title: 'Coding Competition',
-        description: 'Showcase your programming skills in this competitive coding event.',
-        date: '2024-02-20',
-        time: '2:00 PM',
-        location: 'Computer Lab 101',
-        category: 'Competition',
-        maxParticipants: 30,
-        currentParticipants: 28,
-        status: 'upcoming',
-        image: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80',
-        isOrganizer: true
-      },
-      {
-        id: 2,
-        title: 'Web Development Workshop',
-        description: 'Learn modern web development techniques and frameworks.',
-        date: '2024-02-28',
-        time: '10:00 AM',
-        location: 'Room 205',
-        category: 'Workshop',
-        maxParticipants: 25,
-        currentParticipants: 15,
-        status: 'upcoming',
-        image: 'https://images.unsplash.com/photo-1515187029135-18ee286d815b?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80',
-        isOrganizer: true
-      },
-      {
-        id: 3,
-        title: 'Tech Workshop 2024',
-        description: 'Learn the latest technologies in web development and mobile apps.',
-        date: '2024-02-15',
-        time: '10:00 AM',
-        location: 'Main Auditorium',
-        category: 'Technology',
-        maxParticipants: 50,
-        currentParticipants: 35,
-        status: 'upcoming',
-        image: 'https://images.unsplash.com/photo-1515187029135-18ee286d815b?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80',
-        isOrganizer: false
-      },
-      {
-        id: 4,
-        title: 'Python Programming Course',
-        description: 'Complete Python programming course for beginners.',
-        date: '2024-01-15',
-        time: '3:00 PM',
-        location: 'Computer Lab 102',
-        category: 'Course',
-        maxParticipants: 20,
-        currentParticipants: 20,
-        status: 'completed',
-        image: 'https://images.unsplash.com/photo-1526379095098-d400fd0bf935?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80',
-        isOrganizer: true
+    const fetchMyEvents = async () => {
+      try {
+        const token = storage.getToken()
+        if (!token) {
+          setMyEvents([])
+          setLoading(false)
+          return
+        }
+        const response = await api.getStudentEvents(token)
+        // API returns events with Mongo _id; normalize and compute status for tabs
+        const now = new Date()
+        const normalized = (response.events || []).map(e => ({
+          ...e,
+          id: e._id,
+          // Mark completed if date is past; otherwise upcoming
+          status: new Date(e.date) < now ? 'completed' : 'upcoming',
+          isOrganizer: false
+        }))
+        setMyEvents(normalized)
+      } catch (err) {
+        console.error('Failed to load my events', err)
+        setMyEvents([])
+      } finally {
+        setLoading(false)
       }
-    ])
-    setLoading(false)
+    }
+    fetchMyEvents()
   }, [])
 
   const handleEditEvent = (eventId) => {
@@ -86,9 +56,23 @@ function MyEvents() {
   const filteredEvents = myEvents.filter(event => {
     if (activeTab === 'upcoming') return event.status === 'upcoming'
     if (activeTab === 'completed') return event.status === 'completed'
-    if (activeTab === 'organizing') return event.isOrganizer
     return true
   })
+
+  const handleUnregister = async (eventId) => {
+    try {
+      const token = storage.getToken()
+      if (!token) return
+      setUnregisterLoading(prev => new Set(prev).add(eventId))
+      await api.unregisterFromEvent(eventId, token)
+      setMyEvents(prev => prev.filter(e => e.id !== eventId))
+    } catch (err) {
+      console.error('Failed to unregister', err)
+      alert(err.message || 'Failed to unregister')
+    } finally {
+      setUnregisterLoading(prev => { const ns = new Set(prev); ns.delete(eventId); return ns })
+    }
+  }
 
   if (loading) {
     return (
@@ -112,7 +96,7 @@ function MyEvents() {
         <p className="mt-2 text-gray-600">Manage your events and registrations</p>
       </div>
 
-      {/* Tabs */}
+      {/* Tabs (Organizing removed) */}
       <div className="mb-6">
         <div className="border-b border-gray-200">
           <nav className="-mb-px flex space-x-8">
@@ -125,16 +109,6 @@ function MyEvents() {
               }`}
             >
               Upcoming
-            </button>
-            <button
-              onClick={() => setActiveTab('organizing')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'organizing'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              Organizing
             </button>
             <button
               onClick={() => setActiveTab('completed')}
@@ -188,6 +162,16 @@ function MyEvents() {
                 
                 <h3 className="text-xl font-semibold text-gray-900 mb-2">{event.title}</h3>
                 <p className="text-gray-600 mb-4">{event.description}</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 text-sm">
+                  <div>
+                    <div className="text-gray-500">Requirements</div>
+                    <div className="text-gray-800 whitespace-pre-wrap">{event.requirements || 'None'}</div>
+                  </div>
+                  <div>
+                    <div className="text-gray-500">Contact</div>
+                    <div className="text-gray-800">{event.contactEmail || 'N/A'}{event.contactPhone ? ` • ${event.contactPhone}` : ''}</div>
+                  </div>
+                </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                   <div className="flex items-center text-sm text-gray-500">
@@ -212,32 +196,22 @@ function MyEvents() {
                 </div>
 
                 <div className="flex flex-wrap gap-2">
-                  {event.isOrganizer && event.status === 'upcoming' && (
+                  {event.status === 'upcoming' && (
                     <>
                       <button
-                        onClick={() => handleEditEvent(event.id)}
-                        className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition duration-150 ease-in-out"
+                        onClick={() => setViewingEvent(event)}
+                        className="px-4 py-2 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50 transition"
                       >
-                        Edit Event
+                        View Details
                       </button>
                       <button
-                        onClick={() => handleViewParticipants(event.id)}
-                        className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 transition duration-150 ease-in-out"
+                        onClick={() => handleUnregister(event.id)}
+                        disabled={unregisterLoading.has(event.id)}
+                        className={`px-4 py-2 text-white text-sm font-medium rounded-md transition ${unregisterLoading.has(event.id) ? 'bg-gray-400' : 'bg-red-600 hover:bg-red-700'}`}
                       >
-                        View Participants
-                      </button>
-                      <button
-                        onClick={() => handleDeleteEvent(event.id)}
-                        className="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700 transition duration-150 ease-in-out"
-                      >
-                        Delete Event
+                        {unregisterLoading.has(event.id) ? 'Unregistering...' : 'Unregister'}
                       </button>
                     </>
-                  )}
-                  {!event.isOrganizer && event.status === 'upcoming' && (
-                    <button className="px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-md hover:bg-gray-700 transition duration-150 ease-in-out">
-                      Cancel Registration
-                    </button>
                   )}
                   {event.status === 'completed' && (
                     <button className="px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-md hover:bg-purple-700 transition duration-150 ease-in-out">
@@ -259,9 +233,71 @@ function MyEvents() {
           <h3 className="mt-2 text-sm font-medium text-gray-900">No events found</h3>
           <p className="mt-1 text-sm text-gray-500">
             {activeTab === 'upcoming' && "You don't have any upcoming events."}
-            {activeTab === 'organizing' && "You're not organizing any events."}
             {activeTab === 'completed' && "You don't have any completed events."}
           </p>
+        </div>
+      )}
+
+      {/* Details Modal */}
+      {viewingEvent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black bg-opacity-40" onClick={() => setViewingEvent(null)}></div>
+          <div className="relative bg-white w-full max-w-2xl mx-4 rounded-lg shadow-lg border border-gray-200">
+            <div className="p-6 border-b border-gray-200">
+              <h2 className="text-xl font-semibold text-gray-900">Event Details</h2>
+            </div>
+            <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div>
+                  <div className="text-gray-500">Title</div>
+                  <div className="font-medium text-gray-900">{viewingEvent.title}</div>
+                </div>
+                <div>
+                  <div className="text-gray-500">Type</div>
+                  <div className="font-medium text-gray-900 capitalize">{viewingEvent.eventType}</div>
+                </div>
+                <div>
+                  <div className="text-gray-500">Category</div>
+                  <div className="font-medium text-gray-900 capitalize">{viewingEvent.category}</div>
+                </div>
+                <div>
+                  <div className="text-gray-500">Participants</div>
+                  <div className="font-medium text-gray-900">{viewingEvent.currentParticipants || 0}{viewingEvent.maxParticipants ? ` / ${viewingEvent.maxParticipants}` : ''}</div>
+                </div>
+              </div>
+              <div>
+                <div className="text-gray-500 text-sm">Description</div>
+                <div className="text-gray-800 text-sm whitespace-pre-wrap">{viewingEvent.description}</div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div>
+                  <div className="text-gray-500">Date</div>
+                  <div className="font-medium text-gray-900">{new Date(viewingEvent.date).toLocaleDateString()}</div>
+                </div>
+                <div>
+                  <div className="text-gray-500">Time</div>
+                  <div className="font-medium text-gray-900">{viewingEvent.time}</div>
+                </div>
+                <div className="md:col-span-2">
+                  <div className="text-gray-500">Location</div>
+                  <div className="font-medium text-gray-900">{viewingEvent.location}</div>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div>
+                  <div className="text-gray-500">Requirements</div>
+                  <div className="text-gray-800 whitespace-pre-wrap">{viewingEvent.requirements || 'None'}</div>
+                </div>
+                <div>
+                  <div className="text-gray-500">Contact</div>
+                  <div className="text-gray-800">{viewingEvent.contactEmail || 'N/A'}{viewingEvent.contactPhone ? ` • ${viewingEvent.contactPhone}` : ''}</div>
+                </div>
+              </div>
+            </div>
+            <div className="p-4 border-t border-gray-200 flex items-center justify-end gap-3">
+              <button onClick={() => setViewingEvent(null)} className="px-4 py-2 rounded-md text-sm font-medium border border-gray-300 text-gray-700 hover:bg-gray-50">Close</button>
+            </div>
+          </div>
         </div>
       )}
     </div>

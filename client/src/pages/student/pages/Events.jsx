@@ -11,6 +11,9 @@ function Events() {
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [registeredEvents, setRegisteredEvents] = useState(new Set());
   const [registrationLoading, setRegistrationLoading] = useState(new Set());
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState(null);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 
   useEffect(() => {
     fetchEvents();
@@ -77,6 +80,8 @@ function Events() {
         newSet.delete(eventId);
         return newSet;
       });
+      setIsConfirmOpen(false);
+      setSelectedEvent(null);
     }
   };
 
@@ -127,7 +132,10 @@ function Events() {
     // Apply category filter
     const matchesCategory = categoryFilter === 'all' || event.category === categoryFilter;
     
-    return matchesSearch && matchesCategory;
+    // Exclude events that are over (past date/time)
+    const isUpcoming = new Date(event.date) > new Date();
+    
+    return matchesSearch && matchesCategory && isUpcoming;
   });
 
   const formatDate = (dateString) => {
@@ -292,39 +300,235 @@ function Events() {
                     </div>
                   </div>
 
-                  {/* Registration Button */}
-                  <div className="flex items-center justify-between">
-                    <button
-                      onClick={() => isRegistered ? handleUnregister(event._id) : handleRegister(event._id)}
-                      disabled={isLoading || isFull}
-                      className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                        isRegistered
-                          ? 'bg-red-600 text-white hover:bg-red-700'
-                          : isFull
-                          ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
-                          : 'bg-blue-600 text-white hover:bg-blue-700'
-                      } disabled:opacity-50`}
-                    >
-                      {isLoading ? (
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mx-auto"></div>
-                      ) : isRegistered ? (
-                        'Unregister'
-                      ) : isFull ? (
-                        'Event Full'
-                      ) : (
-                        'Register'
-                      )}
-                    </button>
-                    
-                    {/* Heart Icon */}
-                    <button className="ml-3 p-2 text-gray-400 hover:text-red-500 transition-colors">
-                      {isRegistered ? <FaHeart className="h-5 w-5 text-red-500" /> : <FaRegHeart className="h-5 w-5" />}
-                    </button>
+                  {/* Registration / Details Buttons */
+                  }
+                  <div className="flex items-center justify-between gap-3">
+                    {isRegistered ? (
+                      <>
+                        <button
+                          disabled
+                          className="flex-1 px-4 py-2 rounded-md text-sm font-medium bg-gray-300 text-gray-700 cursor-not-allowed"
+                        >
+                          Registered
+                        </button>
+                        <button
+                          onClick={() => { setSelectedEvent(event); setIsDetailsOpen(true); }}
+                          className="px-4 py-2 rounded-md text-sm font-medium border border-gray-300 text-gray-700 hover:bg-gray-50"
+                        >
+                          View Details
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => {
+                            setSelectedEvent(event);
+                            setIsConfirmOpen(true);
+                          }}
+                          disabled={isLoading || isFull}
+                          className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                            isFull ? 'bg-gray-400 text-gray-600 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'
+                          } disabled:opacity-50`}
+                        >
+                          {isLoading ? (
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mx-auto"></div>
+                          ) : isFull ? (
+                            'Event Full'
+                          ) : (
+                            'Register'
+                          )}
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
             );
           })}
+        </div>
+      )}
+      {/* Details Modal */}
+      {isDetailsOpen && selectedEvent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black bg-opacity-40" onClick={() => { setIsDetailsOpen(false); setSelectedEvent(null); }}></div>
+          <div className="relative bg-white w-full max-w-2xl mx-4 rounded-lg shadow-lg border border-gray-200">
+            <div className="p-6 border-b border-gray-200">
+              <h2 className="text-xl font-semibold text-gray-900">Event Details</h2>
+              <p className="text-sm text-gray-600 mt-1">All information provided by the coordinator.</p>
+            </div>
+            <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+              <div>
+                <h3 className="text-sm font-medium text-gray-700">Basic Information</h3>
+                <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <div className="text-gray-500">Event Title</div>
+                    <div className="font-medium text-gray-900">{selectedEvent.title}</div>
+                  </div>
+                  <div>
+                    <div className="text-gray-500">Event Type</div>
+                    <div className="font-medium text-gray-900 capitalize">{selectedEvent.eventType}</div>
+                  </div>
+                  <div>
+                    <div className="text-gray-500">Category</div>
+                    <div className="font-medium text-gray-900 capitalize">{selectedEvent.category}</div>
+                  </div>
+                  <div>
+                    <div className="text-gray-500">Maximum Participants</div>
+                    <div className="font-medium text-gray-900">{selectedEvent.maxParticipants ?? 'No limit'}</div>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-gray-700">Event Description</h3>
+                <p className="mt-2 text-gray-700 text-sm whitespace-pre-wrap">{selectedEvent.description}</p>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-gray-700">Date & Time</h3>
+                <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <div className="text-gray-500">Event Date</div>
+                    <div className="font-medium text-gray-900">{formatDate(selectedEvent.date)}</div>
+                  </div>
+                  <div>
+                    <div className="text-gray-500">Event Time</div>
+                    <div className="font-medium text-gray-900">{formatTime(selectedEvent.date)}</div>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-gray-700">Location</h3>
+                <div className="mt-2 text-sm">
+                  <div className="text-gray-500">Event Location</div>
+                  <div className="font-medium text-gray-900">{selectedEvent.location}</div>
+                </div>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-gray-700">Requirements & Additional Info</h3>
+                <div className="mt-2 text-sm space-y-2">
+                  <div>
+                    <div className="text-gray-500">Requirements</div>
+                    <div className="font-medium text-gray-900 whitespace-pre-wrap">{selectedEvent.requirements || 'None'}</div>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-gray-700">Contact Information</h3>
+                <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <div className="text-gray-500">Contact Email</div>
+                    <div className="font-medium text-gray-900">{selectedEvent.contactEmail || 'Not provided'}</div>
+                  </div>
+                  <div>
+                    <div className="text-gray-500">Contact Phone</div>
+                    <div className="font-medium text-gray-900">{selectedEvent.contactPhone || 'Not provided'}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="p-4 border-t border-gray-200 flex items-center justify-end gap-3">
+              <button
+                onClick={() => { setIsDetailsOpen(false); setSelectedEvent(null); }}
+                className="px-4 py-2 rounded-md text-sm font-medium border border-gray-300 text-gray-700 hover:bg-gray-50"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Confirmation Modal */}
+      {isConfirmOpen && selectedEvent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black bg-opacity-40" onClick={() => { setIsConfirmOpen(false); setSelectedEvent(null); }}></div>
+          <div className="relative bg-white w-full max-w-2xl mx-4 rounded-lg shadow-lg border border-gray-200">
+            <div className="p-6 border-b border-gray-200">
+              <h2 className="text-xl font-semibold text-gray-900">Confirm Registration</h2>
+              <p className="text-sm text-gray-600 mt-1">Review the event details before confirming your registration.</p>
+            </div>
+            <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+              <div>
+                <h3 className="text-sm font-medium text-gray-700">Basic Information</h3>
+                <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <div className="text-gray-500">Event Title</div>
+                    <div className="font-medium text-gray-900">{selectedEvent.title}</div>
+                  </div>
+                  <div>
+                    <div className="text-gray-500">Event Type</div>
+                    <div className="font-medium text-gray-900 capitalize">{selectedEvent.eventType}</div>
+                  </div>
+                  <div>
+                    <div className="text-gray-500">Category</div>
+                    <div className="font-medium text-gray-900 capitalize">{selectedEvent.category}</div>
+                  </div>
+                  <div>
+                    <div className="text-gray-500">Maximum Participants</div>
+                    <div className="font-medium text-gray-900">{selectedEvent.maxParticipants ?? 'No limit'}</div>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-gray-700">Event Description</h3>
+                <p className="mt-2 text-gray-700 text-sm whitespace-pre-wrap">{selectedEvent.description}</p>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-gray-700">Date & Time</h3>
+                <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <div className="text-gray-500">Event Date</div>
+                    <div className="font-medium text-gray-900">{formatDate(selectedEvent.date)}</div>
+                  </div>
+                  <div>
+                    <div className="text-gray-500">Event Time</div>
+                    <div className="font-medium text-gray-900">{formatTime(selectedEvent.date)}</div>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-gray-700">Location</h3>
+                <div className="mt-2 text-sm">
+                  <div className="text-gray-500">Event Location</div>
+                  <div className="font-medium text-gray-900">{selectedEvent.location}</div>
+                </div>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-gray-700">Requirements & Additional Info</h3>
+                <div className="mt-2 text-sm space-y-2">
+                  <div>
+                    <div className="text-gray-500">Requirements</div>
+                    <div className="font-medium text-gray-900 whitespace-pre-wrap">{selectedEvent.requirements || 'None'}</div>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-gray-700">Contact Information</h3>
+                <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <div className="text-gray-500">Contact Email</div>
+                    <div className="font-medium text-gray-900">{selectedEvent.contactEmail || 'Not provided'}</div>
+                  </div>
+                  <div>
+                    <div className="text-gray-500">Contact Phone</div>
+                    <div className="font-medium text-gray-900">{selectedEvent.contactPhone || 'Not provided'}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="p-4 border-t border-gray-200 flex items-center justify-end gap-3">
+              <button
+                onClick={() => { setIsConfirmOpen(false); setSelectedEvent(null); }}
+                className="px-4 py-2 rounded-md text-sm font-medium border border-gray-300 text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => selectedEvent && handleRegister(selectedEvent._id)}
+                className="px-4 py-2 rounded-md text-sm font-medium bg-blue-600 text-white hover:bg-blue-700"
+              >
+                Confirm & Register
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
