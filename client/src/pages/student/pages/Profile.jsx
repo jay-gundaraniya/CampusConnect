@@ -10,6 +10,13 @@ function Profile() {
   const [showDepartmentDropdown, setShowDepartmentDropdown] = useState(false)
   const [showYearDropdown, setShowYearDropdown] = useState(false)
   const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false)
+  const [activitySummary, setActivitySummary] = useState({
+    eventsAttended: 0,
+    eventsOrganized: 0,
+    certificatesEarned: 0,
+    memberSince: ''
+  })
+  const [activityLoading, setActivityLoading] = useState(true)
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -44,6 +51,7 @@ function Profile() {
 
   useEffect(() => {
     fetchProfile()
+    fetchActivitySummary()
   }, [])
 
   const fetchProfile = async () => {
@@ -105,6 +113,31 @@ function Profile() {
       })
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchActivitySummary = async () => {
+    setActivityLoading(true)
+    try {
+      const token = storage.getToken()
+      if (!token) {
+        setActivityLoading(false)
+        return
+      }
+
+      const response = await api.getStudentActivitySummary(token)
+      setActivitySummary(response)
+    } catch (error) {
+      console.error('Error fetching activity summary:', error)
+      // Set default values on error
+      setActivitySummary({
+        eventsAttended: 0,
+        eventsOrganized: 0,
+        certificatesEarned: 0,
+        memberSince: user?.createdAt ? new Date(user.createdAt).getFullYear().toString() : ''
+      })
+    } finally {
+      setActivityLoading(false)
     }
   }
 
@@ -380,24 +413,45 @@ function Profile() {
           {/* Quick Stats */}
           <div className="bg-white rounded-lg shadow p-6 mt-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Activity Summary</h3>
-            <div className="space-y-4">
-              <div className="flex justify-between">
-                <span className="text-gray-600">Events Attended</span>
-                <span className="font-semibold">12</span>
+            {activityLoading ? (
+              <div className="space-y-4">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Events Attended</span>
+                  <div className="animate-pulse bg-gray-200 h-4 w-8 rounded"></div>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Events Organized</span>
+                  <div className="animate-pulse bg-gray-200 h-4 w-8 rounded"></div>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Certificates Earned</span>
+                  <div className="animate-pulse bg-gray-200 h-4 w-8 rounded"></div>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Member Since</span>
+                  <div className="animate-pulse bg-gray-200 h-4 w-12 rounded"></div>
+                </div>
               </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Events Organized</span>
-                <span className="font-semibold">3</span>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Events Attended</span>
+                  <span className="font-semibold">{activitySummary.eventsAttended}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Events Organized</span>
+                  <span className="font-semibold">{activitySummary.eventsOrganized}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Certificates Earned</span>
+                  <span className="font-semibold">{activitySummary.certificatesEarned}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Member Since</span>
+                  <span className="font-semibold">{activitySummary.memberSince || (user?.createdAt ? new Date(user.createdAt).getFullYear().toString() : 'N/A')}</span>
+                </div>
               </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Certificates Earned</span>
-                <span className="font-semibold">8</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Member Since</span>
-                <span className="font-semibold">2022</span>
-              </div>
-            </div>
+            )}
           </div>
         </div>
 

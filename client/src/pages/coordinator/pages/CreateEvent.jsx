@@ -16,6 +16,8 @@ function CreateEvent() {
     contactEmail: '',
     contactPhone: '+91 '
   });
+  const [eventImage, setEventImage] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
@@ -45,6 +47,23 @@ function CreateEvent() {
     }
   };
 
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setEventImage(file);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setImagePreview(e.target.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeImage = () => {
+    setEventImage(null);
+    setImagePreview(null);
+  };
+
   const handleCancel = () => {
     setFormData({
       title: '',
@@ -59,6 +78,8 @@ function CreateEvent() {
       contactEmail: '',
       contactPhone: '+91 '
     });
+    setEventImage(null);
+    setImagePreview(null);
     setError('');
     setSuccess('');
     setPhoneError('');
@@ -169,7 +190,14 @@ function CreateEvent() {
       };
 
       // Call API to create event
-      const response = await api.createEvent(eventData, token);
+      let response;
+      if (eventImage) {
+        // Create event with image
+        response = await api.createEventWithImage(eventData, eventImage, token);
+      } else {
+        // Create event without image
+        response = await api.createEvent(eventData, token);
+      }
       
       setSuccess(response.message || 'Event created successfully! It will be reviewed by admin.');
       
@@ -187,6 +215,8 @@ function CreateEvent() {
         contactEmail: '',
         contactPhone: '+91 '
       });
+      setEventImage(null);
+      setImagePreview(null);
     } catch (err) {
       setError(err.message || 'Failed to create event. Please try again.');
     } finally {
@@ -309,6 +339,43 @@ function CreateEvent() {
               onChange={handleChange}
               placeholder="Describe your event in detail..."
             />
+          </div>
+        </div>
+
+        {/* Event Image */}
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Event Image</h2>
+          <div className="space-y-4">
+            {imagePreview ? (
+              <div className="relative">
+                <img
+                  src={imagePreview}
+                  alt="Event preview"
+                  className="w-full h-48 object-cover rounded-lg border border-gray-300"
+                />
+                <button
+                  type="button"
+                  onClick={removeImage}
+                  className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-2 hover:bg-red-600"
+                >
+                  <FaTimes className="h-4 w-4" />
+                </button>
+              </div>
+            ) : (
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                <FaCalendarAlt className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                <p className="text-gray-600 mb-2">Upload an event image (optional)</p>
+                <label className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 cursor-pointer">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageChange}
+                    className="hidden"
+                  />
+                  Choose Image
+                </label>
+              </div>
+            )}
           </div>
         </div>
 

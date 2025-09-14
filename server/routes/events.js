@@ -1,10 +1,46 @@
 const express = require('express');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 const Event = require('../models/Event');
 const User = require('../models/User');
 const authenticateToken = require('../middleware/authenticateToken');
 const requireAdmin = require('../middleware/requireAdmin');
 
 const router = express.Router();
+
+// Configure multer for event image uploads
+const eventImageStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = 'uploads/events';
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, `event-${uniqueSuffix}${path.extname(file.originalname)}`);
+  }
+});
+
+const uploadEventImage = multer({
+  storage: eventImageStorage,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /jpeg|jpg|png|gif/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+    
+    if (mimetype && extname) {
+      return cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed'));
+    }
+  }
+});
 
 // Get all events (public)
 router.get('/', async (req, res) => {
@@ -20,7 +56,15 @@ router.get('/', async (req, res) => {
       .populate('coordinator', 'name email')
       .sort({ date: 1 });
     
-    res.json({ events });
+    // Convert image paths to full URLs
+    const eventsWithImageUrls = events.map(event => {
+      if (event.image) {
+        event.image = `${req.protocol}://${req.get('host')}/${event.image.replace(/\\/g, '/')}`;
+      }
+      return event;
+    });
+    
+    res.json({ events: eventsWithImageUrls });
   } catch (error) {
     console.error('Error fetching events:', error);
     res.status(500).json({ message: 'Internal server error' });
@@ -45,8 +89,16 @@ router.get('/admin/all', authenticateToken, requireAdmin, async (req, res) => {
       .populate('participants.student', 'name email')
       .sort({ createdAt: -1 });
     
-    console.log(`Found ${events.length} events for admin`);
-    res.json({ events });
+    // Convert image paths to full URLs
+    const eventsWithImageUrls = events.map(event => {
+      if (event.image) {
+        event.image = `${req.protocol}://${req.get('host')}/${event.image.replace(/\\/g, '/')}`;
+      }
+      return event;
+    });
+    
+    console.log(`Found ${eventsWithImageUrls.length} events for admin`);
+    res.json({ events: eventsWithImageUrls });
   } catch (error) {
     console.error('Error fetching admin events:', error);
     res.status(500).json({ message: 'Internal server error' });
@@ -62,6 +114,11 @@ router.get('/:id', async (req, res) => {
     
     if (!event) {
       return res.status(404).json({ message: 'Event not found' });
+    }
+    
+    // Convert image path to full URL if it exists
+    if (event.image) {
+      event.image = `${req.protocol}://${req.get('host')}/${event.image.replace(/\\/g, '/')}`;
     }
     
     res.json({ event });
@@ -102,6 +159,51 @@ router.post('/', authenticateToken, async (req, res) => {
     });
   } catch (error) {
     console.error('Error creating event:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// Create new event with image (coordinator only)
+router.post('/with-image', authenticateToken, uploadEventImage.single('image'), async (req, res) => {
+  try {
+    // Fetch user from database to get current roles
+    const user = await User.findById(req.user.userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    if (!user.roles || !user.roles.includes('coordinator')) {
+      return res.status(403).json({ message: 'Only coordinators can create events' });
+    }
+    
+    const eventData = {
+      ...req.body,
+      coordinator: req.user.userId,
+      status: 'pending' // Events need admin approval
+    };
+    
+    // Add image path if image was uploaded
+    if (req.file) {
+      eventData.image = req.file.path;
+    }
+    
+    const event = new Event(eventData);
+    await event.save();
+    
+    const populatedEvent = await Event.findById(event._id)
+      .populate('coordinator', 'name email');
+    
+    // Convert image path to full URL if it exists
+    if (populatedEvent.image) {
+      populatedEvent.image = `${req.protocol}://${req.get('host')}/${populatedEvent.image.replace(/\\/g, '/')}`;
+    }
+    
+    res.status(201).json({ 
+      message: 'Event created successfully and sent for approval',
+      event: populatedEvent 
+    });
+  } catch (error) {
+    console.error('Error creating event with image:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 });
@@ -303,7 +405,15 @@ router.get('/coordinator/me', authenticateToken, async (req, res) => {
       .populate('participants.student', 'name email')
       .sort({ createdAt: -1 });
     
-    res.json({ events });
+    // Convert image paths to full URLs
+    const eventsWithImageUrls = events.map(event => {
+      if (event.image) {
+        event.image = `${req.protocol}://${req.get('host')}/${event.image.replace(/\\/g, '/')}`;
+      }
+      return event;
+    });
+    
+    res.json({ events: eventsWithImageUrls });
   } catch (error) {
     console.error('Error fetching coordinator events:', error);
     res.status(500).json({ message: 'Internal server error' });
@@ -330,7 +440,15 @@ router.get('/student/registered', authenticateToken, async (req, res) => {
     .populate('coordinator', 'name email')
     .sort({ date: 1 });
     
-    res.json({ events });
+    // Convert image paths to full URLs
+    const eventsWithImageUrls = events.map(event => {
+      if (event.image) {
+        event.image = `${req.protocol}://${req.get('host')}/${event.image.replace(/\\/g, '/')}`;
+      }
+      return event;
+    });
+    
+    res.json({ events: eventsWithImageUrls });
   } catch (error) {
     console.error('Error fetching student events:', error);
     res.status(500).json({ message: 'Internal server error' });

@@ -256,9 +256,23 @@ function Events() {
             
             return (
               <div key={event._id} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
-                {/* Event Image Placeholder */}
-                <div className="h-48 bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center">
-                  <FaCalendarAlt className="h-16 w-16 text-white opacity-80" />
+                {/* Event Image */}
+                <div className="h-48 bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center overflow-hidden">
+                  {event.image ? (
+                    <img
+                      src={event.image}
+                      alt={event.title}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        console.error('Event image load error:', e);
+                        e.target.style.display = 'none';
+                        e.target.nextSibling.style.display = 'flex';
+                      }}
+                    />
+                  ) : null}
+                  <div className={`h-full w-full flex items-center justify-center ${event.image ? 'hidden' : 'flex'}`}>
+                    <FaCalendarAlt className="h-16 w-16 text-white opacity-80" />
+                  </div>
                 </div>
 
                 {/* Event Content */}
@@ -357,6 +371,20 @@ function Events() {
               <p className="text-sm text-gray-600 mt-1">All information provided by the coordinator.</p>
             </div>
             <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+              {/* Event Image */}
+              {selectedEvent.image && (
+                <div>
+                  <img
+                    src={selectedEvent.image}
+                    alt={selectedEvent.title}
+                    className="w-full h-48 object-cover rounded-lg"
+                    onError={(e) => {
+                      console.error('Event image load error in modal:', e);
+                      e.target.style.display = 'none';
+                    }}
+                  />
+                </div>
+              )}
               <div>
                 <h3 className="text-sm font-medium text-gray-700">Basic Information</h3>
                 <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
@@ -446,6 +474,20 @@ function Events() {
               <p className="text-sm text-gray-600 mt-1">Review the event details before confirming your registration.</p>
             </div>
             <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+              {/* Event Image */}
+              {selectedEvent.image && (
+                <div>
+                  <img
+                    src={selectedEvent.image}
+                    alt={selectedEvent.title}
+                    className="w-full h-48 object-cover rounded-lg"
+                    onError={(e) => {
+                      console.error('Event image load error in confirmation modal:', e);
+                      e.target.style.display = 'none';
+                    }}
+                  />
+                </div>
+              )}
               <div>
                 <h3 className="text-sm font-medium text-gray-700">Basic Information</h3>
                 <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">

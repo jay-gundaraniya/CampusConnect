@@ -147,6 +147,27 @@ export const api = {
     return handleResponse(response);
   },
 
+  createEventWithImage: async (eventData, imageFile, token) => {
+    const formData = new FormData();
+    
+    // Append all event data fields
+    Object.keys(eventData).forEach(key => {
+      formData.append(key, eventData[key]);
+    });
+    
+    // Append the image file
+    formData.append('image', imageFile);
+    
+    const response = await fetch(`${API_BASE_URL}/events/with-image`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: formData,
+    });
+    return handleResponse(response);
+  },
+
   updateEvent: async (eventId, eventData, token) => {
     const response = await fetch(`${API_BASE_URL}/events/${eventId}`, {
       method: 'PUT',
@@ -200,6 +221,15 @@ export const api = {
 
   getStudentEvents: async (token) => {
     const response = await fetch(`${API_BASE_URL}/events/student/registered`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    return handleResponse(response);
+  },
+
+  getStudentActivitySummary: async (token) => {
+    const response = await fetch(`${API_BASE_URL}/student/activity-summary`, {
       headers: {
         'Authorization': `Bearer ${token}`,
       },
