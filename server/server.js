@@ -17,6 +17,9 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Serve static files from uploads directory
+app.use('/uploads', express.static('uploads'));
+
 // MongoDB Connection
 mongoose.connect(config.MONGODB_URI)
   .then(() => {
@@ -75,55 +78,6 @@ app.get('/api/health', (req, res) => {
   res.json({ message: 'CampusConnect API is running!', status: 'OK' });
 });
 
-// Get current user profile
-app.get('/api/auth/profile', authenticateToken, async (req, res) => {
-  try {
-    const user = await User.findById(req.user.userId).select('-password');
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-    res.json({ user });
-  } catch (error) {
-    console.error('Profile error:', error);
-    res.status(500).json({ message: 'Internal server error' });
-  }
-});
-
-// Update user profile
-app.put('/api/auth/profile', authenticateToken, async (req, res) => {
-  try {
-    const { name } = req.body;
-    const user = await User.findById(req.user.userId);
-    
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-
-    if (name) user.name = name;
-
-    await user.save();
-
-    const userResponse = {
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-      roles: user.roles,
-      defaultRole: user.defaultRole,
-      currentRole: user.currentRole,
-      avatar: user.avatar,
-      createdAt: user.createdAt
-    };
-
-    res.json({
-      message: 'Profile updated successfully',
-      user: userResponse
-    });
-
-  } catch (error) {
-    console.error('Profile update error:', error);
-    res.status(500).json({ message: 'Internal server error' });
-  }
-});
 
 // Forgot password route
 app.post('/api/auth/forgot-password', async (req, res) => {

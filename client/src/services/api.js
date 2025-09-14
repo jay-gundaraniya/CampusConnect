@@ -76,6 +76,20 @@ export const api = {
     return handleResponse(response);
   },
 
+  uploadProfilePhoto: async (token, file) => {
+    const formData = new FormData();
+    formData.append('avatar', file);
+    
+    const response = await fetch(`${API_BASE_URL}/auth/profile/photo`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: formData,
+    });
+    return handleResponse(response);
+  },
+
   // Password reset
   forgotPassword: async (email) => {
     const response = await fetch(`${API_BASE_URL}/auth/forgot-password`, {

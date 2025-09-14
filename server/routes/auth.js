@@ -6,10 +6,46 @@ const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const config = require('../config');
 const CoordinatorRequest = require('../models/CoordinatorRequest');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 
 const router = express.Router();
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = 'uploads/avatars';
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, `avatar-${req.user.userId}-${uniqueSuffix}${path.extname(file.originalname)}`);
+  }
+});
+
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /jpeg|jpg|png|gif/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+    
+    if (mimetype && extname) {
+      return cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed'));
+    }
+  }
+});
 
 // Middleware to verify JWT token
 const authenticateToken = (req, res, next) => {
@@ -140,6 +176,9 @@ router.post('/login', async (req, res) => {
       { expiresIn: '7d' }
     );
 
+    // Convert avatar path to full URL if it exists
+    const avatarUrl = user.avatar ? `${req.protocol}://${req.get('host')}/${user.avatar.replace(/\\/g, '/')}` : user.avatar;
+
     const userResponse = {
       _id: user._id,
       name: user.name,
@@ -147,7 +186,7 @@ router.post('/login', async (req, res) => {
       role: user.currentRole,
       roles: user.roles,
       defaultRole: user.defaultRole,
-      avatar: user.avatar,
+      avatar: avatarUrl,
       createdAt: user.createdAt
     };
 
@@ -220,6 +259,9 @@ router.post('/google', async (req, res) => {
       { expiresIn: '7d' }
     );
 
+    // Convert avatar path to full URL if it exists
+    const avatarUrl = user.avatar ? `${req.protocol}://${req.get('host')}/${user.avatar.replace(/\\/g, '/')}` : user.avatar;
+
     const userResponse = {
       _id: user._id,
       name: user.name,
@@ -227,7 +269,7 @@ router.post('/google', async (req, res) => {
       role: user.currentRole,
       roles: user.roles,
       defaultRole: user.defaultRole,
-      avatar: user.avatar,
+      avatar: avatarUrl,
       createdAt: user.createdAt
     };
 
@@ -249,7 +291,32 @@ router.get('/profile', authenticateToken, async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
-    res.json({ user });
+    
+    // Convert avatar path to full URL if it exists
+    const avatarUrl = user.avatar ? `${req.protocol}://${req.get('host')}/${user.avatar.replace(/\\/g, '/')}` : user.avatar;
+    console.log('Profile - Original avatar path:', user.avatar);
+    console.log('Profile - Generated avatar URL:', avatarUrl);
+    
+    const userResponse = {
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.currentRole,
+      roles: user.roles,
+      defaultRole: user.defaultRole,
+      avatar: avatarUrl,
+      studentId: user.studentId,
+      department: user.department,
+      year: user.year,
+      bio: user.bio,
+      skills: user.skills,
+      interests: user.interests,
+      position: user.position,
+      phone: user.phone,
+      createdAt: user.createdAt
+    };
+    
+    res.json({ user: userResponse });
   } catch (error) {
     console.error('Profile error:', error);
     res.status(500).json({ message: 'Internal server error' });
@@ -259,13 +326,55 @@ router.get('/profile', authenticateToken, async (req, res) => {
 // Update profile
 router.put('/profile', authenticateToken, async (req, res) => {
   try {
-    const { name } = req.body;
+    console.log('Profile update request received');
+    console.log('User ID:', req.user.userId);
+    console.log('Request body:', req.body);
+    
+    const { 
+      name, 
+      avatar, 
+      studentId, 
+      department, 
+      year, 
+      bio, 
+      skills, 
+      interests, 
+      position, 
+      phone 
+    } = req.body;
+    
     const user = await User.findById(req.user.userId);
     if (!user) {
+      console.log('User not found');
       return res.status(404).json({ message: 'User not found' });
     }
+
+    console.log('User found:', user.email);
+
+    // Update basic fields
     if (name) user.name = name;
+    if (avatar) user.avatar = avatar;
+    if (phone) user.phone = phone;
+
+    // Update student-specific fields
+    if (studentId) user.studentId = studentId;
+    if (department) user.department = department;
+    if (year) user.year = year;
+    if (bio) user.bio = bio;
+    if (skills) user.skills = skills;
+    if (interests) user.interests = interests;
+
+    // Update coordinator-specific fields
+    if (position) user.position = position;
+
+    console.log('Saving user with updated data');
     await user.save();
+    
+    console.log('User saved successfully');
+    
+    // Convert avatar path to full URL if it exists
+    const avatarUrl = user.avatar ? `${req.protocol}://${req.get('host')}/${user.avatar.replace(/\\/g, '/')}` : user.avatar;
+    
     const userResponse = {
       _id: user._id,
       name: user.name,
@@ -273,15 +382,62 @@ router.put('/profile', authenticateToken, async (req, res) => {
       role: user.currentRole,
       roles: user.roles,
       defaultRole: user.defaultRole,
-      avatar: user.avatar,
+      avatar: avatarUrl,
+      studentId: user.studentId,
+      department: user.department,
+      year: user.year,
+      bio: user.bio,
+      skills: user.skills,
+      interests: user.interests,
+      position: user.position,
+      phone: user.phone,
       createdAt: user.createdAt
     };
+    
+    console.log('Sending response:', userResponse);
+    
     res.json({
       message: 'Profile updated successfully',
       user: userResponse
     });
   } catch (error) {
     console.error('Profile update error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// Upload profile photo
+router.post('/profile/photo', authenticateToken, upload.single('avatar'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded' });
+    }
+
+    const user = await User.findById(req.user.userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Delete old avatar if exists
+    if (user.avatar && fs.existsSync(user.avatar)) {
+      fs.unlinkSync(user.avatar);
+    }
+
+    // Update user avatar path
+    user.avatar = req.file.path;
+    await user.save();
+
+    // Return full URL for the avatar
+    const avatarUrl = `${req.protocol}://${req.get('host')}/${req.file.path.replace(/\\/g, '/')}`;
+    console.log('Upload - File path:', req.file.path);
+    console.log('Upload - Generated avatar URL:', avatarUrl);
+
+    res.json({
+      message: 'Profile photo uploaded successfully',
+      avatar: avatarUrl
+    });
+  } catch (error) {
+    console.error('Profile photo upload error:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 });
@@ -316,6 +472,9 @@ router.post('/switch-role', authenticateToken, async (req, res) => {
       { expiresIn: '7d' }
     );
 
+    // Convert avatar path to full URL if it exists
+    const avatarUrl = user.avatar ? `${req.protocol}://${req.get('host')}/${user.avatar.replace(/\\/g, '/')}` : user.avatar;
+
     const userResponse = {
       _id: user._id,
       name: user.name,
@@ -323,7 +482,7 @@ router.post('/switch-role', authenticateToken, async (req, res) => {
       role: user.currentRole,
       roles: user.roles,
       defaultRole: user.defaultRole,
-      avatar: user.avatar,
+      avatar: avatarUrl,
       createdAt: user.createdAt
     };
 

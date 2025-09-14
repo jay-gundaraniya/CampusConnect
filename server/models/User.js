@@ -24,6 +24,38 @@ const userSchema = new mongoose.Schema({
   avatar: { 
     type: String 
   },
+  // Student specific fields
+  studentId: {
+    type: String,
+    sparse: true
+  },
+  department: {
+    type: String,
+    sparse: true
+  },
+  year: {
+    type: String,
+    sparse: true
+  },
+  bio: {
+    type: String,
+    sparse: true
+  },
+  skills: [{
+    type: String
+  }],
+  interests: [{
+    type: String
+  }],
+  // Coordinator specific fields
+  position: {
+    type: String,
+    sparse: true
+  },
+  phone: {
+    type: String,
+    sparse: true
+  },
   roles: {
     type: [String],
     enum: ['student', 'coordinator', 'admin'],

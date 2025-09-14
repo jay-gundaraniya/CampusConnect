@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { FaUser, FaEnvelope, FaPhone, FaMapMarkerAlt, FaSave, FaEdit, FaTimes } from 'react-icons/fa';
-import { storage } from '../../../services/api';
+import { FaUser, FaEnvelope, FaPhone, FaMapMarkerAlt, FaSave, FaEdit, FaTimes, FaLock } from 'react-icons/fa';
+import { storage, api } from '../../../services/api';
+import ForgotPasswordModal from '../../../components/ForgotPasswordModal';
 
 function Profile() {
   const [profile, setProfile] = useState({
@@ -17,6 +18,7 @@ function Profile() {
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
+  const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
 
   useEffect(() => {
     fetchProfile();
@@ -25,10 +27,43 @@ function Profile() {
   const fetchProfile = async () => {
     setLoading(true);
     try {
+      const token = storage.getToken();
+      if (token) {
+        const response = await api.getProfile(token);
+        const userData = response.user;
+        setProfile({
+          name: userData?.name || '',
+          email: userData?.email || '',
+          phone: userData?.phone || '+91 ',
+          department: userData?.department || '',
+          position: userData?.position || '',
+          bio: userData?.bio || '',
+          avatar: userData?.avatar || null
+        });
+        console.log('Coordinator profile data loaded:', userData);
+        console.log('Coordinator avatar value:', userData?.avatar);
+        console.log('Coordinator avatar type:', typeof userData?.avatar);
+      } else {
+        // Fallback to local storage
+        const userData = storage.getUser();
+        if (userData) {
+          setProfile({
+            name: userData.name || 'Coordinator Name',
+            email: userData.email || 'coordinator@example.com',
+            phone: '+91 9876543210',
+            department: 'Computer Science',
+            position: 'Event Coordinator',
+            bio: 'Experienced event coordinator with a passion for organizing engaging campus events and fostering student participation.',
+            avatar: null
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+      // Fallback to local storage on error
       const userData = storage.getUser();
       if (userData) {
-        // TODO: Replace with actual API call to get full profile
-        const mockProfile = {
+        setProfile({
           name: userData.name || 'Coordinator Name',
           email: userData.email || 'coordinator@example.com',
           phone: '+91 9876543210',
@@ -36,11 +71,8 @@ function Profile() {
           position: 'Event Coordinator',
           bio: 'Experienced event coordinator with a passion for organizing engaging campus events and fostering student participation.',
           avatar: null
-        };
-        setProfile(mockProfile);
+        });
       }
-    } catch (error) {
-      console.error('Error fetching profile:', error);
     } finally {
       setLoading(false);
     }
@@ -49,7 +81,7 @@ function Profile() {
   const handleChange = (e) => {
     const { name, value } = e.target;
     
-    // Handle phone number with +91 prefix (same as student profile)
+    // Handle phone number with +91 prefix
     if (name === 'phone') {
       // Only allow numeric input and limit to 10 digits
       const numericValue = value.replace(/\D/g, '').slice(0, 10);
@@ -65,13 +97,38 @@ function Profile() {
     }
   };
 
-  const handleAvatarChange = (e) => {
+  const handleAvatarChange = async (e) => {
     const file = e.target.files[0];
+    console.log('Coordinator file selected:', file);
     if (file) {
-      setProfile({
-        ...profile,
-        avatar: file
-      });
+      try {
+        const token = storage.getToken();
+        if (!token) {
+          console.error('No authentication token found');
+          return;
+        }
+
+        console.log('Coordinator uploading photo to server...');
+        // Upload photo to server
+        const response = await api.uploadProfilePhoto(token, file);
+        
+        console.log('Coordinator upload response:', response);
+        
+        // Update profile with server path
+        setProfile(prev => ({
+          ...prev,
+          avatar: response.avatar
+        }));
+        
+        console.log('Coordinator profile photo uploaded successfully:', response);
+      } catch (error) {
+        console.error('Error uploading coordinator profile photo:', error);
+        // Fallback to local file for preview
+        setProfile(prev => ({
+          ...prev,
+          avatar: file
+        }));
+      }
     }
   };
 
@@ -81,11 +138,39 @@ function Profile() {
     setSuccess('');
 
     try {
-      // TODO: Implement API call to update profile
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const token = storage.getToken();
+      console.log('Coordinator token found:', !!token);
+      if (!token) {
+        setError('No authentication token found');
+        return;
+      }
+
+      // Prepare profile data for API
+      const profileData = {
+        name: profile.name,
+        phone: profile.phone,
+        department: profile.department,
+        position: profile.position,
+        bio: profile.bio
+      };
+
+      console.log('Sending coordinator profile data:', profileData);
+
+      // Update profile via API
+      const response = await api.updateProfile(token, profileData);
+      
+      console.log('Coordinator API response:', response);
+      
+      // Update local storage with new user data
+      const userData = storage.getUser();
+      const updatedUser = { ...userData, ...response.user };
+      storage.setUser(updatedUser);
+      
       setSuccess('Profile updated successfully!');
       setIsEditing(false);
     } catch (err) {
+      console.error('Error updating coordinator profile:', err);
+      console.error('Error details:', err.message);
       setError('Failed to update profile. Please try again.');
     } finally {
       setSaving(false);
@@ -97,6 +182,10 @@ function Profile() {
     setIsEditing(false);
     setError('');
     setSuccess('');
+  };
+
+  const handleChangePassword = () => {
+    setShowForgotPasswordModal(true);
   };
 
   if (loading) {
@@ -146,11 +235,17 @@ function Profile() {
             <div className="text-center">
               <div className="relative inline-block">
                 <div className="w-32 h-32 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
-                  {profile.avatar ? (
+                  {profile.avatar && profile.avatar !== 'Profile' ? (
                     <img
-                      src={URL.createObjectURL(profile.avatar)}
+                      src={typeof profile.avatar === 'string' ? profile.avatar : URL.createObjectURL(profile.avatar)}
                       alt="Profile"
                       className="w-32 h-32 rounded-full object-cover"
+                      onLoad={() => console.log('Coordinator image loaded successfully:', profile.avatar)}
+                      onError={(e) => {
+                        console.error('Coordinator image load error:', e);
+                        console.error('Failed to load image:', profile.avatar);
+                        e.target.style.display = 'none';
+                      }}
                     />
                   ) : (
                     <FaUser className="h-16 w-16 text-gray-400" />
@@ -171,6 +266,17 @@ function Profile() {
               {isEditing && (
                 <p className="text-sm text-gray-500">Click the edit icon to change your profile picture</p>
               )}
+              
+              {/* Change Password Button */}
+              <div className="mt-4">
+                <button
+                  onClick={handleChangePassword}
+                  className="flex items-center justify-center w-full px-4 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-200 transition duration-150 ease-in-out"
+                >
+                  <FaLock className="mr-2 h-4 w-4" />
+                  Change Password
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -223,7 +329,7 @@ function Profile() {
                     type="tel"
                     id="phone"
                     name="phone"
-                    value={profile.phone.replace('+91 ', '')}
+                    value={profile.phone.replace(/^\+91\s*/, '')}
                     onChange={handleChange}
                     disabled={!isEditing}
                     placeholder="Enter phone number"
@@ -302,28 +408,11 @@ function Profile() {
         </div>
       </div>
 
-      {/* Account Settings */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Account Settings</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <button className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-            <FaUser className="h-5 w-5 text-blue-600 mr-3" />
-            <span className="text-sm font-medium text-gray-700">Change Password</span>
-          </button>
-          <button className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-            <FaEnvelope className="h-5 w-5 text-green-600 mr-3" />
-            <span className="text-sm font-medium text-gray-700">Email Preferences</span>
-          </button>
-          <button className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-            <FaPhone className="h-5 w-5 text-purple-600 mr-3" />
-            <span className="text-sm font-medium text-gray-700">Notification Settings</span>
-          </button>
-          <button className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-            <FaMapMarkerAlt className="h-5 w-5 text-red-600 mr-3" />
-            <span className="text-sm font-medium text-gray-700">Privacy Settings</span>
-          </button>
-        </div>
-      </div>
+      {/* Forgot Password Modal */}
+      <ForgotPasswordModal 
+        isOpen={showForgotPasswordModal}
+        onClose={() => setShowForgotPasswordModal(false)}
+      />
     </div>
   );
 }

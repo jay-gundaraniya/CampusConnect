@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
-import { storage } from '../../../services/api'
+import { FaUser, FaEdit } from 'react-icons/fa'
+import { storage, api } from '../../../services/api'
+import ForgotPasswordModal from '../../../components/ForgotPasswordModal'
 
 function Profile() {
   const [user, setUser] = useState(null)
@@ -7,6 +9,7 @@ function Profile() {
   const [isEditing, setIsEditing] = useState(false)
   const [showDepartmentDropdown, setShowDepartmentDropdown] = useState(false)
   const [showYearDropdown, setShowYearDropdown] = useState(false)
+  const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false)
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -16,7 +19,8 @@ function Profile() {
     year: '',
     bio: '',
     skills: [],
-    interests: []
+    interests: [],
+    avatar: null
   })
 
   // Department options
@@ -39,22 +43,70 @@ function Profile() {
   ]
 
   useEffect(() => {
-    // Load user data
-    const userData = storage.getUser()
-    setUser(userData)
-    setFormData({
-      name: userData?.name || '',
-      email: userData?.email || '',
-      phone: '+91 ',
-      studentId: 'STU2024001',
-      department: 'Information Technology',
-      year: '3rd Year',
-      bio: 'Passionate student interested in web development and machine learning. Always eager to learn new technologies and participate in campus events.',
-      skills: ['JavaScript', 'React', 'Node.js', 'Python', 'Machine Learning'],
-      interests: ['Web Development', 'AI/ML', 'Mobile Apps', 'Data Science']
-    })
-    setLoading(false)
+    fetchProfile()
   }, [])
+
+  const fetchProfile = async () => {
+    setLoading(true)
+    try {
+      const token = storage.getToken()
+      if (token) {
+        const response = await api.getProfile(token)
+        const userData = response.user
+        setUser(userData)
+        setFormData({
+          name: userData?.name || '',
+          email: userData?.email || '',
+          phone: userData?.phone || '+91 ',
+          studentId: userData?.studentId || '',
+          department: userData?.department || '',
+          year: userData?.year || '',
+          bio: userData?.bio || '',
+          skills: userData?.skills || [],
+          interests: userData?.interests || [],
+          avatar: userData?.avatar || null
+        })
+        console.log('Student profile data loaded:', userData)
+        console.log('Student avatar value:', userData?.avatar)
+        console.log('Student avatar type:', typeof userData?.avatar)
+      } else {
+        // Fallback to local storage if no token
+        const userData = storage.getUser()
+        setUser(userData)
+        setFormData({
+          name: userData?.name || '',
+          email: userData?.email || '',
+          phone: '+91 ',
+          studentId: 'STU2024001',
+          department: 'Information Technology',
+          year: '3rd Year',
+          bio: 'Passionate student interested in web development and machine learning. Always eager to learn new technologies and participate in campus events.',
+          skills: ['JavaScript', 'React', 'Node.js', 'Python', 'Machine Learning'],
+          interests: ['Web Development', 'AI/ML', 'Mobile Apps', 'Data Science'],
+          avatar: null
+        })
+      }
+    } catch (error) {
+      console.error('Error fetching profile:', error)
+      // Fallback to local storage on error
+      const userData = storage.getUser()
+      setUser(userData)
+      setFormData({
+        name: userData?.name || '',
+        email: userData?.email || '',
+        phone: '+91 ',
+        studentId: 'STU2024001',
+        department: 'Information Technology',
+        year: '3rd Year',
+        bio: 'Passionate student interested in web development and machine learning. Always eager to learn new technologies and participate in campus events.',
+        skills: ['JavaScript', 'React', 'Node.js', 'Python', 'Machine Learning'],
+        interests: ['Web Development', 'AI/ML', 'Mobile Apps', 'Data Science'],
+        avatar: null
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -122,31 +174,107 @@ function Profile() {
     }))
   }
 
-  const handleSave = () => {
-    console.log('Saving profile:', formData)
-    // Implement save functionality
-    setIsEditing(false)
+  const handleAvatarChange = async (e) => {
+    const file = e.target.files[0]
+    console.log('File selected:', file)
+    if (file) {
+      try {
+        const token = storage.getToken()
+        if (!token) {
+          console.error('No authentication token found')
+          return
+        }
+
+        console.log('Uploading photo to server...')
+        // Upload photo to server
+        const response = await api.uploadProfilePhoto(token, file)
+        
+        console.log('Upload response:', response)
+        
+        // Update form data with server path
+        setFormData(prev => ({
+          ...prev,
+          avatar: response.avatar
+        }))
+        
+        // Update user data
+        const updatedUser = { ...user, avatar: response.avatar }
+        setUser(updatedUser)
+        storage.setUser(updatedUser)
+        
+        console.log('Profile photo uploaded successfully:', response)
+      } catch (error) {
+        console.error('Error uploading profile photo:', error)
+        // Fallback to local file for preview
+        setFormData(prev => ({
+          ...prev,
+          avatar: file
+        }))
+      }
+    }
+  }
+
+  const handleSave = async () => {
+    try {
+      const token = storage.getToken()
+      console.log('Token found:', !!token)
+      if (!token) {
+        console.error('No authentication token found')
+        return
+      }
+
+      // Prepare profile data for API
+      const profileData = {
+        name: formData.name,
+        phone: formData.phone,
+        studentId: formData.studentId,
+        department: formData.department,
+        year: formData.year,
+        bio: formData.bio,
+        skills: formData.skills,
+        interests: formData.interests
+      }
+
+      console.log('Sending profile data:', profileData)
+
+      // Update profile via API
+      const response = await api.updateProfile(token, profileData)
+      
+      console.log('API response:', response)
+      
+      // Update local storage with new user data
+      const updatedUser = { ...user, ...response.user }
+      storage.setUser(updatedUser)
+      setUser(updatedUser)
+      
+      console.log('Profile updated successfully:', response)
+      setIsEditing(false)
+    } catch (error) {
+      console.error('Error updating profile:', error)
+      console.error('Error details:', error.message)
+      // You could add error state handling here
+    }
   }
 
   const handleCancel = () => {
-    // Reset form data to original values
+    // Reset form data to original values from user data
     setFormData({
       name: user?.name || '',
       email: user?.email || '',
-      phone: '+91',
-      studentId: 'STU2024001',
-      department: 'Information Technology',
-      year: '3rd Year',
-      bio: 'Passionate student interested in web development and machine learning. Always eager to learn new technologies and participate in campus events.',
-      skills: ['JavaScript', 'React', 'Node.js', 'Python', 'Machine Learning'],
-      interests: ['Web Development', 'AI/ML', 'Mobile Apps', 'Data Science']
+      phone: user?.phone || '+91 ',
+      studentId: user?.studentId || '',
+      department: user?.department || '',
+      year: user?.year || '',
+      bio: user?.bio || '',
+      skills: user?.skills || [],
+      interests: user?.interests || [],
+      avatar: user?.avatar || null
     })
     setIsEditing(false)
   }
 
   const handleChangePassword = () => {
-    console.log('Change password clicked')
-    // Implement change password functionality
+    setShowForgotPasswordModal(true)
   }
 
   if (loading) {
@@ -203,11 +331,41 @@ function Profile() {
         <div className="lg:col-span-1">
           <div className="bg-white rounded-lg shadow p-6">
             <div className="text-center">
-              <div className="h-32 w-32 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-3xl font-bold text-blue-600">
-                  {user?.name?.split(' ').map(n => n[0]).join('')}
-                </span>
+              <div className="relative inline-block">
+                <div className="h-32 w-32 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  {formData.avatar && formData.avatar !== 'Profile' ? (
+                    <img
+                      src={typeof formData.avatar === 'string' ? formData.avatar : URL.createObjectURL(formData.avatar)}
+                      alt="Profile"
+                      className="h-32 w-32 rounded-full object-cover"
+                      onLoad={() => console.log('Student image loaded successfully:', formData.avatar)}
+                      onError={(e) => {
+                        console.error('Student image load error:', e);
+                        console.error('Failed to load image:', formData.avatar);
+                        e.target.style.display = 'none';
+                      }}
+                    />
+                  ) : (
+                    <span className="text-3xl font-bold text-blue-600">
+                      {user?.name?.split(' ').map(n => n[0]).join('')}
+                    </span>
+                  )}
+                </div>
+                {isEditing && (
+                  <label className="absolute bottom-0 right-0 bg-blue-600 text-white p-2 rounded-full cursor-pointer hover:bg-blue-700">
+                    <FaEdit className="h-4 w-4" />
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleAvatarChange}
+                      className="hidden"
+                    />
+                  </label>
+                )}
               </div>
+              {isEditing && (
+                <p className="text-sm text-gray-500 mb-4">Click the edit icon to change your profile picture</p>
+              )}
               <h2 className="text-xl font-semibold text-gray-900 mb-2">{user?.name}</h2>
               <p className="text-gray-600 mb-4">{user?.email}</p>
               <button
@@ -430,37 +588,14 @@ function Profile() {
               </div>
             </div>
           </div>
-
-          {/* Privacy Settings */}
-          <div className="bg-white rounded-lg shadow mt-6">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">Privacy Settings</h3>
-            </div>
-            <div className="p-6 space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="text-sm font-medium text-gray-900">Profile Visibility</h4>
-                  <p className="text-sm text-gray-500">Allow other students to view your profile</p>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" defaultChecked className="sr-only peer" />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                </label>
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="text-sm font-medium text-gray-900">Email Notifications</h4>
-                  <p className="text-sm text-gray-500">Receive notifications about new events</p>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" defaultChecked className="sr-only peer" />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                </label>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
+      
+      {/* Forgot Password Modal */}
+      <ForgotPasswordModal 
+        isOpen={showForgotPasswordModal}
+        onClose={() => setShowForgotPasswordModal(false)}
+      />
     </div>
   )
 }
