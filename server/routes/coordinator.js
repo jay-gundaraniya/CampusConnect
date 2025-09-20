@@ -1,15 +1,84 @@
 const express = require('express');
 const authenticateToken = require('../middleware/authenticateToken');
 const User = require('../models/User');
+const Event = require('../models/Event');
 
 const router = express.Router();
 
-// Example protected coordinator route
-router.get('/dashboard', authenticateToken, (req, res) => {
-  if (!req.user.roles || !req.user.roles.includes('coordinator')) {
-    return res.status(403).json({ message: 'Coordinator access required' });
+// Get coordinator dashboard data
+router.get('/dashboard', authenticateToken, async (req, res) => {
+  try {
+    // Fetch user from database to get current roles
+    const user = await User.findById(req.user.userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    if (!user.roles || !user.roles.includes('coordinator')) {
+      return res.status(403).json({ message: 'Coordinator access required' });
+    }
+
+    const coordinatorId = req.user.userId;
+
+    // Get coordinator's events
+    const myEvents = await Event.find({ coordinator: coordinatorId })
+      .populate('participants.student', 'name email');
+
+    // Calculate statistics
+    const totalEvents = myEvents.length;
+    
+    // Active events (approved and upcoming)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const activeEvents = myEvents.filter(event => 
+      event.status === 'approved' && new Date(event.date) >= today
+    ).length;
+
+    // Completed events (approved events with past dates)
+    const completedEvents = myEvents.filter(event => 
+      event.status === 'approved' && new Date(event.date) < today
+    ).length;
+
+    // Total participants across all events
+    const totalParticipants = myEvents.reduce((sum, event) => 
+      sum + (event.participants?.length || 0), 0
+    );
+
+    // Pending approvals (events with 'pending' status)
+    const pendingApprovals = myEvents.filter(event => 
+      event.status === 'pending'
+    ).length;
+
+    // Recent events (last 5 events)
+    const recentEvents = myEvents
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      .slice(0, 5)
+      .map(event => ({
+        id: event._id,
+        title: event.title,
+        date: event.date,
+        time: event.time,
+        status: event.status,
+        participantsCount: event.participants?.length || 0,
+        createdAt: event.createdAt
+      }));
+
+    const responseData = {
+      stats: {
+        totalEvents,
+        activeEvents,
+        completedEvents,
+        totalParticipants,
+        pendingApprovals
+      },
+      recentEvents
+    };
+    
+    res.json(responseData);
+  } catch (error) {
+    console.error('Error fetching coordinator dashboard data:', error);
+    res.status(500).json({ message: 'Internal server error' });
   }
-  res.json({ message: 'This is a protected coordinator dashboard route!' });
 });
 
 // Get all students (for coordinator to manage)

@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
-import { storage } from '../../../services/api';
+import { useNavigate } from 'react-router-dom';
+import { storage, api } from '../../../services/api';
 import { FaUsers, FaCalendarCheck, FaUserGraduate, FaClock, FaCalendarAlt } from 'react-icons/fa';
 
 function Dashboard() {
+  const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [stats, setStats] = useState({
     totalCoordinators: 0,
@@ -50,10 +52,51 @@ function Dashboard() {
         }
       }
       
+      // Fetch upcoming events
+      let activeEventsCount = 0;
+      try {
+        const eventsRes = await api.getUpcomingEvents(token);
+        const allEvents = eventsRes.events || [];
+        
+        // Filter for only approved upcoming events (future dates)
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        // Calculate total active events count (all upcoming approved events)
+        const allUpcomingEvents = allEvents.filter(event => {
+          const eventDate = new Date(event.date);
+          return eventDate >= today && event.status === 'approved';
+        });
+        activeEventsCount = allUpcomingEvents.length;
+        
+        // Get 3 events for display (sorted by date, earliest first)
+        const upcomingEventsData = allUpcomingEvents
+          .sort((a, b) => new Date(a.date) - new Date(b.date))
+          .slice(0, 3);
+        
+        // Format for display
+        const formattedEvents = upcomingEventsData.map(event => ({
+          id: event._id,
+          title: event.title,
+          date: new Date(event.date).toLocaleDateString(),
+          time: event.time,
+          location: event.location,
+          organizer: event.coordinator?.name || 'Unknown',
+          attendees: event.participants?.length || 0,
+          status: event.status
+        }));
+        
+        setUpcomingEvents(formattedEvents);
+      } catch (eventsError) {
+        console.error('Error fetching upcoming events:', eventsError);
+        setUpcomingEvents([]);
+        activeEventsCount = 0;
+      }
+
       setStats({
         totalCoordinators: coordinatorData.count || 0,
         pendingRequests: requestsData.requests?.length || 0,
-        totalEvents: 0, // TODO: Implement when events are added
+        totalEvents: activeEventsCount,
         totalStudents: studentData.count || 0
       });
     } catch (error) {
@@ -65,41 +108,12 @@ function Dashboard() {
         totalEvents: 0,
         totalStudents: 0
       });
+      setUpcomingEvents([]);
     } finally {
       setLoading(false);
     }
   };
 
-  // Placeholder data for upcoming events
-  const placeholderUpcomingEvents = [
-    {
-      id: 1,
-      title: 'Tech Workshop 2024',
-      date: '2024-02-15',
-      time: '10:00 AM',
-      location: 'Main Auditorium',
-      organizer: 'John Doe',
-      attendees: 45
-    },
-    {
-      id: 2,
-      title: 'Cultural Festival',
-      date: '2024-02-20',
-      time: '6:00 PM',
-      location: 'Open Air Theater',
-      organizer: 'Jane Smith',
-      attendees: 120
-    },
-    {
-      id: 3,
-      title: 'Career Fair',
-      date: '2024-02-25',
-      time: '2:00 PM',
-      location: 'Conference Hall',
-      organizer: 'Mike Johnson',
-      attendees: 200
-    }
-  ];
 
   const statCards = [
     {
@@ -117,7 +131,7 @@ function Dashboard() {
       textColor: 'text-yellow-500'
     },
     {
-      title: 'Total Events',
+      title: 'Active Events',
       value: stats.totalEvents,
       icon: FaCalendarCheck,
       color: 'bg-green-500',
@@ -165,17 +179,26 @@ function Dashboard() {
       <div className="bg-white rounded-lg shadow p-6">
         <h2 className="text-xl font-semibold text-gray-900 mb-4">Quick Actions</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <button className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+          <button 
+            onClick={() => navigate('/admin/user-management')}
+            className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+          >
             <FaUsers className="h-5 w-5 text-blue-600 mr-3" />
             <span className="text-sm font-medium text-gray-700">Manage Users</span>
           </button>
-          <button className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+          <button 
+            onClick={() => navigate('/admin/event-approval')}
+            className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+          >
             <FaCalendarCheck className="h-5 w-5 text-green-600 mr-3" />
             <span className="text-sm font-medium text-gray-700">Review Events</span>
           </button>
-          <button className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+          <button 
+            onClick={() => navigate('/admin/certificate-manager')}
+            className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+          >
             <FaUserGraduate className="h-5 w-5 text-purple-600 mr-3" />
-            <span className="text-sm font-medium text-gray-700">Manage Students</span>
+            <span className="text-sm font-medium text-gray-700">Manage Certificates</span>
           </button>
         </div>
       </div>
@@ -186,7 +209,12 @@ function Dashboard() {
           <h2 className="text-xl font-semibold text-gray-900">Upcoming Events Summary</h2>
           <FaCalendarAlt className="h-5 w-5 text-blue-600" />
         </div>
-        {placeholderUpcomingEvents.length === 0 ? (
+        {loading ? (
+          <div className="text-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="text-sm text-gray-500 mt-2">Loading events...</p>
+          </div>
+        ) : upcomingEvents.length === 0 ? (
           <div className="text-gray-500 text-center py-8">
             <FaCalendarAlt className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <p>No upcoming events</p>
@@ -194,7 +222,7 @@ function Dashboard() {
           </div>
         ) : (
           <div className="space-y-4">
-            {placeholderUpcomingEvents.map((event) => (
+            {upcomingEvents.map((event) => (
               <div key={event.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
@@ -219,11 +247,6 @@ function Dashboard() {
             ))}
           </div>
         )}
-        <div className="mt-4 text-center">
-          <button className="text-blue-600 hover:text-blue-800 text-sm font-medium">
-            View All Events →
-          </button>
-        </div>
       </div>
     </div>
   );

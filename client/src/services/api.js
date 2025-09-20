@@ -237,6 +237,35 @@ export const api = {
     return handleResponse(response);
   },
 
+  // Student Dashboard API
+  getStudentDashboardData: async (token) => {
+    const response = await fetch(`${API_BASE_URL}/student/dashboard`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    return handleResponse(response);
+  },
+
+  // Coordinator Dashboard API
+  getCoordinatorDashboardData: async (token) => {
+    const response = await fetch(`${API_BASE_URL}/coordinator/dashboard`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    return handleResponse(response);
+  },
+
+  getUpcomingEvents: async (token) => {
+    const response = await fetch(`${API_BASE_URL}/events?status=approved`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    return handleResponse(response);
+  },
+
   // Certificates API
   getCertificates: async (token) => {
     const response = await fetch(`${API_BASE_URL}/certificates`, {

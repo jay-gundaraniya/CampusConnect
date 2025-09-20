@@ -4,7 +4,7 @@ import { api, storage } from '../../../services/api'
 function MyEvents() {
   const [myEvents, setMyEvents] = useState([])
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState('upcoming')
+  const [activeTab, setActiveTab] = useState('registered')
   const [unregisterLoading, setUnregisterLoading] = useState(new Set())
   const [viewingEvent, setViewingEvent] = useState(null)
 
@@ -23,8 +23,8 @@ function MyEvents() {
         const normalized = (response.events || []).map(e => ({
           ...e,
           id: e._id,
-          // Mark completed if date is past; otherwise upcoming
-          status: new Date(e.date) < now ? 'completed' : 'upcoming',
+          // Mark completed if date is past; otherwise registered
+          status: new Date(e.date) < now ? 'completed' : 'registered',
           isOrganizer: false
         }))
         setMyEvents(normalized)
@@ -54,7 +54,7 @@ function MyEvents() {
   }
 
   const filteredEvents = myEvents.filter(event => {
-    if (activeTab === 'upcoming') return event.status === 'upcoming'
+    if (activeTab === 'registered') return event.status === 'registered'
     if (activeTab === 'completed') return event.status === 'completed'
     return true
   })
@@ -101,14 +101,14 @@ function MyEvents() {
         <div className="border-b border-gray-200">
           <nav className="-mb-px flex space-x-8">
             <button
-              onClick={() => setActiveTab('upcoming')}
+              onClick={() => setActiveTab('registered')}
               className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'upcoming'
+                activeTab === 'registered'
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
-              Upcoming
+              Registered
             </button>
             <button
               onClick={() => setActiveTab('completed')}
@@ -148,7 +148,7 @@ function MyEvents() {
                       </span>
                     )}
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      event.status === 'upcoming' 
+                      event.status === 'registered' 
                         ? 'bg-yellow-100 text-yellow-800' 
                         : 'bg-gray-100 text-gray-800'
                     }`}>
@@ -196,7 +196,7 @@ function MyEvents() {
                 </div>
 
                 <div className="flex flex-wrap gap-2">
-                  {event.status === 'upcoming' && (
+                  {event.status === 'registered' && (
                     <>
                       <button
                         onClick={() => setViewingEvent(event)}
@@ -232,7 +232,7 @@ function MyEvents() {
           </svg>
           <h3 className="mt-2 text-sm font-medium text-gray-900">No events found</h3>
           <p className="mt-1 text-sm text-gray-500">
-            {activeTab === 'upcoming' && "You don't have any upcoming events."}
+            {activeTab === 'registered' && "You don't have any registered events."}
             {activeTab === 'completed' && "You don't have any completed events."}
           </p>
         </div>

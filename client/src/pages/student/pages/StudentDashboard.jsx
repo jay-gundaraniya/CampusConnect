@@ -1,98 +1,56 @@
 import { useState, useEffect } from 'react'
-import { storage } from '../../../services/api'
+import { storage, api } from '../../../services/api'
 
 // Upcoming Event Timeline Component
-function UpcomingEventTimeline() {
-  const events = [
-    {
-      id: 1,
-      title: "Tech Innovation Summit 2024",
-      date: "March 15, 2024",
-      time: "10:00 AM - 4:00 PM",
-      status: "Register"
-    },
-    {
-      id: 2,
-      title: "Web Development Workshop",
-      date: "March 20, 2024",
-      time: "2:00 PM - 6:00 PM",
-      status: "View"
-    },
-    {
-      id: 3,
-      title: "AI & Machine Learning Seminar",
-      date: "March 25, 2024",
-      time: "11:00 AM - 3:00 PM",
-      status: "Register"
-    },
-    {
-      id: 4,
-      title: "Coding Competition Finals",
-      date: "March 30, 2024",
-      time: "9:00 AM - 5:00 PM",
-      status: "View"
-    }
-  ];
+function UpcomingEventTimeline({ events = [] }) {
 
   return (
     <div className="bg-white shadow rounded-lg p-6">
       <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
         <span className="mr-2">🗓️</span>
-        Upcoming Event Timeline
+        Registered Event Timeline
       </h3>
       <div className="relative">
-        {events.map((event, index) => (
-          <div key={event.id} className="relative pb-8">
-            {index !== events.length - 1 && (
-              <div className="absolute left-4 top-8 w-0.5 h-full bg-gray-200"></div>
-            )}
-            <div className="relative flex items-start space-x-3">
-              <div className="flex-shrink-0">
-                <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center">
-                  <svg className="h-4 w-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
+        {events.length > 0 ? (
+          events.map((event, index) => (
+            <div key={event.id} className="relative pb-8">
+              {index !== events.length - 1 && (
+                <div className="absolute left-4 top-8 w-0.5 h-full bg-gray-200"></div>
+              )}
+              <div className="relative flex items-start space-x-3">
+                <div className="flex-shrink-0">
+                  <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center">
+                    <svg className="h-4 w-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
                 </div>
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h4 className="text-sm font-medium text-gray-900">{event.title}</h4>
-                  <p className="text-xs text-gray-500 mt-1">{event.date} • {event.time}</p>
-                  <button className="mt-2 px-3 py-1 text-xs font-medium rounded-md bg-blue-600 text-white hover:bg-blue-700 transition-colors">
-                    {event.status}
-                  </button>
+                <div className="flex-1 min-w-0">
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <h4 className="text-sm font-medium text-gray-900">{event.title}</h4>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {new Date(event.date).toLocaleDateString()} • {event.time}
+                    </p>
+                    {event.location && (
+                      <p className="text-xs text-gray-500 mt-1">📍 {event.location}</p>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
+          ))
+        ) : (
+          <div className="text-center py-8">
+            <p className="text-sm text-gray-500">No registered events found</p>
           </div>
-        ))}
+        )}
       </div>
     </div>
   );
 }
 
 // Latest Certificates Component
-function LatestCertificates() {
-  const certificates = [
-    {
-      id: 1,
-      eventName: "Web Development Workshop",
-      issuedDate: "March 10, 2024",
-      status: "Download"
-    },
-    {
-      id: 2,
-      eventName: "Python Programming Course",
-      issuedDate: "March 5, 2024",
-      status: "View"
-    },
-    {
-      id: 3,
-      eventName: "Data Science Fundamentals",
-      issuedDate: "February 28, 2024",
-      status: "Download"
-    }
-  ];
+function LatestCertificates({ certificates = [] }) {
 
   return (
     <div className="bg-white shadow rounded-lg p-6">
@@ -101,15 +59,28 @@ function LatestCertificates() {
         Latest Certificates
       </h3>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {certificates.map((cert) => (
-          <div key={cert.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-            <h4 className="text-sm font-medium text-gray-900 mb-2">{cert.eventName}</h4>
-            <p className="text-xs text-gray-500 mb-3">Issued: {cert.issuedDate}</p>
-            <button className="w-full px-3 py-2 text-xs font-medium rounded-md bg-green-600 text-white hover:bg-green-700 transition-colors">
-              {cert.status}
-            </button>
+        {certificates.length > 0 ? (
+          certificates.map((cert) => (
+            <div key={cert._id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+              <h4 className="text-sm font-medium text-gray-900 mb-2">
+                {cert.event?.title || cert.title}
+              </h4>
+              <p className="text-xs text-gray-500 mb-3">
+                Issued: {new Date(cert.issuedDate).toLocaleDateString()}
+              </p>
+              {cert.grade && (
+                <p className="text-xs text-blue-600 mb-2">Grade: {cert.grade}</p>
+              )}
+              <button className="w-full px-3 py-2 text-xs font-medium rounded-md bg-green-600 text-white hover:bg-green-700 transition-colors">
+                {cert.status === 'issued' ? 'Download' : 'View'}
+              </button>
+            </div>
+          ))
+        ) : (
+          <div className="col-span-full text-center py-8">
+            <p className="text-sm text-gray-500">No certificates found</p>
           </div>
-        ))}
+        )}
       </div>
     </div>
   );
@@ -122,7 +93,7 @@ function DidYouKnowTips() {
   const tips = [
     "You can earn bonus points by hosting events.",
     "Certificates are auto-issued within 48 hours.",
-    "Use filters to explore upcoming tech events.",
+    "Use filters to explore registered tech events.",
     "Join study groups to enhance your learning experience.",
     "Check the event gallery for past event highlights."
   ];
@@ -240,13 +211,45 @@ function EventGalleryPreview() {
 function StudentDashboard() {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [dashboardData, setDashboardData] = useState(null)
+  const [completedEventsCount, setCompletedEventsCount] = useState(0)
+  const [error, setError] = useState('')
 
   useEffect(() => {
-    const userData = storage.getUser()
-    if (userData) {
-      setUser(userData)
+    const fetchDashboardData = async () => {
+      try {
+        const userData = storage.getUser()
+        if (userData) {
+          setUser(userData)
+        }
+
+        const token = storage.getToken()
+        if (token) {
+          // Fetch dashboard data and student events in parallel
+          const [dashboardResponse, studentEventsResponse] = await Promise.all([
+            api.getStudentDashboardData(token),
+            api.getStudentEvents(token)
+          ])
+          
+          setDashboardData(dashboardResponse)
+          
+          // Calculate completed events count
+          const today = new Date()
+          today.setHours(0, 0, 0, 0)
+          const completedCount = studentEventsResponse.events?.filter(event => 
+            new Date(event.date) < today
+          ).length || 0
+          setCompletedEventsCount(completedCount)
+        }
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error)
+        setError('Failed to load dashboard data')
+      } finally {
+        setLoading(false)
+      }
     }
-    setLoading(false)
+
+    fetchDashboardData()
   }, [])
 
   if (loading) {
@@ -258,6 +261,22 @@ function StudentDashboard() {
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
           Loading...
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">{error}</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+          >
+            Retry
+          </button>
         </div>
       </div>
     )
@@ -284,7 +303,9 @@ function StudentDashboard() {
               <div className="ml-5 w-0 flex-1">
                 <dl>
                   <dt className="text-sm font-medium text-gray-500 truncate">Upcoming Events</dt>
-                  <dd className="text-lg font-medium text-gray-900">5</dd>
+                  <dd className="text-lg font-medium text-gray-900">
+                    {dashboardData?.stats?.upcomingEvents || 0}
+                  </dd>
                 </dl>
               </div>
             </div>
@@ -302,7 +323,9 @@ function StudentDashboard() {
               <div className="ml-5 w-0 flex-1">
                 <dl>
                   <dt className="text-sm font-medium text-gray-500 truncate">My Events</dt>
-                  <dd className="text-lg font-medium text-gray-900">3</dd>
+                  <dd className="text-lg font-medium text-gray-900">
+                    {completedEventsCount}
+                  </dd>
                 </dl>
               </div>
             </div>
@@ -320,7 +343,9 @@ function StudentDashboard() {
               <div className="ml-5 w-0 flex-1">
                 <dl>
                   <dt className="text-sm font-medium text-gray-500 truncate">Certificates</dt>
-                  <dd className="text-lg font-medium text-gray-900">8</dd>
+                  <dd className="text-lg font-medium text-gray-900">
+                    {dashboardData?.stats?.certificates || 0}
+                  </dd>
                 </dl>
               </div>
             </div>
@@ -333,57 +358,41 @@ function StudentDashboard() {
         <div className="px-4 py-5 sm:p-6">
           <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">Recent Activity</h3>
           <div className="space-y-4">
-            <div className="flex items-center space-x-3">
-              <div className="flex-shrink-0">
-                <div className="h-8 w-8 bg-green-100 rounded-full flex items-center justify-center">
-                  <svg className="h-4 w-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
+            {dashboardData?.recentActivities?.length > 0 ? (
+              dashboardData.recentActivities.map((activity, index) => (
+                <div key={activity.id || index} className="flex items-center space-x-3">
+                  <div className="flex-shrink-0">
+                    <div className="h-8 w-8 bg-green-100 rounded-full flex items-center justify-center">
+                      <svg className="h-4 w-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900">{activity.title}</p>
+                    <p className="text-sm text-gray-500">
+                      {activity.date ? new Date(activity.date).toLocaleDateString() : 'Recently'}
+                    </p>
+                  </div>
                 </div>
+              ))
+            ) : (
+              <div className="text-center py-4">
+                <p className="text-sm text-gray-500">No recent activities found</p>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900">Registered for "Tech Workshop 2024"</p>
-                <p className="text-sm text-gray-500">2 hours ago</p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-3">
-              <div className="flex-shrink-0">
-                <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center">
-                  <svg className="h-4 w-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                  </svg>
-                </div>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900">Created new event "Coding Competition"</p>
-                <p className="text-sm text-gray-500">1 day ago</p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-3">
-              <div className="flex-shrink-0">
-                <div className="h-8 w-8 bg-yellow-100 rounded-full flex items-center justify-center">
-                  <svg className="h-4 w-4 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900">Received certificate for "Web Development"</p>
-                <p className="text-sm text-gray-500">3 days ago</p>
-              </div>
-            </div>
+            )}
           </div>
         </div>
       </div>
 
       {/* New Sections */}
       <div className="mt-8 space-y-8">
-        {/* Upcoming Event Timeline */}
-        <UpcomingEventTimeline />
+        {/* Registered Event Timeline */}
+        <UpcomingEventTimeline events={dashboardData?.upcomingEvents || []} />
         
         {/* Latest Certificates and Did You Know Tips */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <LatestCertificates />
+          <LatestCertificates certificates={dashboardData?.certificates || []} />
           <DidYouKnowTips />
         </div>
         
@@ -394,4 +403,4 @@ function StudentDashboard() {
   )
 }
 
-export default StudentDashboard 
+export default StudentDashboard;
