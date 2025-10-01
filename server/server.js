@@ -46,6 +46,15 @@ app.use('/api/events', eventRoutes);
 const certificateRoutes = require('./routes/certificates');
 app.use('/api/certificates', certificateRoutes);
 
+// Start certificate generation cron job
+try {
+  const certificateCron = require('./services/certificateCron');
+  certificateCron.start();
+  console.log('✅ Certificate cron job started successfully');
+} catch (error) {
+  console.error('❌ Error starting certificate cron job:', error);
+}
+
 // Middleware to verify JWT token
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];

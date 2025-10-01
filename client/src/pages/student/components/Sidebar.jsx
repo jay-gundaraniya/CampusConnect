@@ -18,7 +18,7 @@ function Sidebar({ onLogout }) {
     { path: '/student/dashboard', icon: FaTachometerAlt, label: 'Dashboard' },
     { path: '/student/events', icon: FaCalendarAlt, label: 'Events' },
     { path: '/student/my-events', icon: FaCalendarCheck, label: 'My Events' },
-    { path: '/student/certificates', icon: FaCertificate, label: 'Certificates' },
+    // Certificates page removed; students access certificates via My Events
     { path: '/student/profile', icon: FaUser, label: 'Profile' }
   ];
 

@@ -147,6 +147,11 @@ router.post('/', authenticateToken, async (req, res) => {
       status: 'pending' // Events need admin approval
     };
     
+    // Normalize endDate if sent as empty string
+    if (eventData.endDate === '' || eventData.endDate === undefined) {
+      eventData.endDate = null;
+    }
+    
     const event = new Event(eventData);
     await event.save();
     
@@ -181,6 +186,10 @@ router.post('/with-image', authenticateToken, uploadEventImage.single('image'), 
       coordinator: req.user.userId,
       status: 'pending' // Events need admin approval
     };
+    
+    if (eventData.endDate === '' || eventData.endDate === undefined) {
+      eventData.endDate = null;
+    }
     
     // Add image path if image was uploaded
     if (req.file) {

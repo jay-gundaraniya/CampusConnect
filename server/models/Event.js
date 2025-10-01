@@ -14,6 +14,11 @@ const eventSchema = new mongoose.Schema({
     type: Date, 
     required: true 
   },
+  // Optional end date for multi-day events
+  endDate: {
+    type: Date,
+    default: null
+  },
   time: { 
     type: String, 
     required: true 

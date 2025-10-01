@@ -266,36 +266,7 @@ export const api = {
     return handleResponse(response);
   },
 
-  // Certificates API
-  getCertificates: async (token) => {
-    const response = await fetch(`${API_BASE_URL}/certificates`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    });
-    return handleResponse(response);
-  },
-
-  getStudentCertificates: async (studentId, token) => {
-    const response = await fetch(`${API_BASE_URL}/certificates/student/${studentId}`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    });
-    return handleResponse(response);
-  },
-
-  generateCertificates: async (eventId, grades, token) => {
-    const response = await fetch(`${API_BASE_URL}/certificates/generate/${eventId}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-      body: JSON.stringify({ grades }),
-    });
-    return handleResponse(response);
-  },
+  // Certificates API (minimal): MyEvents flow handles generation/download per user/event
 
   downloadCertificate: async (certificateId, token) => {
     const response = await fetch(`${API_BASE_URL}/certificates/download/${certificateId}`, {
@@ -355,6 +326,46 @@ export const api = {
       },
       body: JSON.stringify({ userId }),
     });
+    return handleResponse(response);
+  },
+
+  // Certificate API
+  getUserCertificates: async (userId, token) => {
+    const response = await fetch(`${API_BASE_URL}/certificates/user/${userId}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    return handleResponse(response);
+  },
+
+  generateCertificate: async (eventId, userId, token) => {
+    const response = await fetch(`${API_BASE_URL}/certificates/generate/${eventId}/${userId}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    return handleResponse(response);
+  },
+
+  downloadCertificate: async (eventId, userId, token) => {
+    const response = await fetch(`${API_BASE_URL}/certificates/${eventId}/${userId}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to download certificate');
+    }
+    
+    return response.blob();
+  },
+
+  verifyCertificate: async (userId, eventId) => {
+    const response = await fetch(`${API_BASE_URL}/certificates/verify/${userId}/${eventId}`);
     return handleResponse(response);
   },
 };

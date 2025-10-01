@@ -7,6 +7,7 @@ function CreateEvent() {
     title: '',
     description: '',
     date: '',
+    endDate: '',
     time: '',
     location: '',
     maxParticipants: '',
@@ -69,6 +70,7 @@ function CreateEvent() {
       title: '',
       description: '',
       date: '',
+      endDate: '',
       time: '',
       location: '',
       maxParticipants: '',
@@ -116,6 +118,14 @@ function CreateEvent() {
     
     if (!formData.date) {
       errors.push('Event date is required');
+    }
+    // endDate optional but if provided must be >= start date
+    if (formData.endDate && formData.date) {
+      const start = new Date(formData.date);
+      const end = new Date(formData.endDate);
+      if (end < start) {
+        errors.push('End date cannot be before start date');
+      }
     }
     
     if (!formData.time) {
@@ -186,7 +196,8 @@ function CreateEvent() {
       const eventData = {
         ...formData,
         maxParticipants: formData.maxParticipants ? parseInt(formData.maxParticipants) : null,
-        date: new Date(formData.date + 'T' + formData.time).toISOString()
+        date: new Date(formData.date + 'T' + formData.time).toISOString(),
+        endDate: formData.endDate ? new Date(formData.endDate + 'T' + formData.time).toISOString() : null
       };
 
       // Call API to create event
@@ -206,6 +217,7 @@ function CreateEvent() {
         title: '',
         description: '',
         date: '',
+        endDate: '',
         time: '',
         location: '',
         maxParticipants: '',
@@ -397,6 +409,26 @@ function CreateEvent() {
                 value={formData.date}
                 onChange={handleChange}
               />
+            </div>
+
+            <div>
+              <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 mb-2">
+                End Date (optional)
+              </label>
+              <input
+                type="date"
+                id="endDate"
+                name="endDate"
+                min={formData.date || new Date().toISOString().split('T')[0]}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                value={formData.endDate}
+                onChange={handleChange}
+              />
+              {formData.date && formData.endDate && (
+                <p className="text-sm text-gray-600 mt-2">
+                  Duration: {Math.max(1, Math.ceil((new Date(formData.endDate) - new Date(formData.date)) / (1000 * 60 * 60 * 24)))} day(s)
+                </p>
+              )}
             </div>
 
             <div>

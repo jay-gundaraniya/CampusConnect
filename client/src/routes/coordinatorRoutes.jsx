@@ -8,7 +8,6 @@ import EditEvent from '../pages/coordinator/pages/EditEvent';
 import ManageEvents from '../pages/coordinator/pages/ManageEvents';
 import Participants from '../pages/coordinator/pages/Participants';
 import AddStudent from '../pages/coordinator/pages/AddStudent';
-import Reports from '../pages/coordinator/pages/Reports';
 import Profile from '../pages/coordinator/pages/Profile';
 
 const coordinatorRoutes = [
@@ -84,7 +83,7 @@ const coordinatorRoutes = [
     element={
       <ProtectedRoute role="coordinator">
         <CoordinatorLayout>
-          <Reports />
+          <Dashboard />
         </CoordinatorLayout>
       </ProtectedRoute>
     }

@@ -28,7 +28,7 @@ function Sidebar({ onLogout }) {
     { path: '/coordinator/manage-events', icon: FaCalendarAlt, label: 'Manage Events' },
     { path: '/coordinator/participants', icon: FaUsers, label: 'Manage Participants' },
     ...(canPromoteStudents ? [{ path: '/coordinator/add-student', icon: FaUserPlus, label: 'Add Student' }] : []),
-    { path: '/coordinator/reports', icon: FaChartBar, label: 'Feedback & Reports' },
+    // Reports removed from coordinator panel
     { path: '/coordinator/profile', icon: FaUser, label: 'Profile' }
   ];
 

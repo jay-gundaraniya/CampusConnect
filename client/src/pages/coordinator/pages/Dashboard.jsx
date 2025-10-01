@@ -131,7 +131,7 @@ function Dashboard() {
       {/* Quick Actions */}
       <div className="bg-white rounded-lg shadow p-6">
         <h2 className="text-xl font-semibold text-gray-900 mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <button 
             onClick={() => navigate('/coordinator/create-event')}
             className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
@@ -146,13 +146,7 @@ function Dashboard() {
             <FaUsers className="h-5 w-5 text-green-600 mr-3" />
             <span className="text-sm font-medium text-gray-700">Manage Participants</span>
           </button>
-          <button 
-            onClick={() => navigate('/coordinator/reports')}
-            className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-          >
-            <FaChartBar className="h-5 w-5 text-purple-600 mr-3" />
-            <span className="text-sm font-medium text-gray-700">View Reports</span>
-          </button>
+          {/* Removed View Reports quick action */}
         </div>
       </div>
 

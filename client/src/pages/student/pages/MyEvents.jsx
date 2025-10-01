@@ -7,6 +7,8 @@ function MyEvents() {
   const [activeTab, setActiveTab] = useState('registered')
   const [unregisterLoading, setUnregisterLoading] = useState(new Set())
   const [viewingEvent, setViewingEvent] = useState(null)
+  const [certificateLoading, setCertificateLoading] = useState(new Set())
+  const [certificates, setCertificates] = useState([])
 
   useEffect(() => {
     const fetchMyEvents = async () => {
@@ -36,6 +38,24 @@ function MyEvents() {
       }
     }
     fetchMyEvents()
+  }, [])
+
+  // Fetch certificates when component mounts
+  useEffect(() => {
+    const fetchCertificates = async () => {
+      try {
+        const token = storage.getToken()
+        const user = storage.getUser()
+        if (!token || !user) return
+
+        const userId = user.userId || user._id
+        const response = await api.getUserCertificates(userId, token)
+        setCertificates(response.certificates || [])
+      } catch (err) {
+        console.error('Failed to load certificates', err)
+      }
+    }
+    fetchCertificates()
   }, [])
 
   const handleEditEvent = (eventId) => {
@@ -71,6 +91,100 @@ function MyEvents() {
       alert(err.message || 'Failed to unregister')
     } finally {
       setUnregisterLoading(prev => { const ns = new Set(prev); ns.delete(eventId); return ns })
+    }
+  }
+
+  const handleViewCertificate = async (eventId) => {
+    try {
+      const token = storage.getToken()
+      const user = storage.getUser()
+      if (!token || !user) return
+
+      setCertificateLoading(prev => new Set(prev).add(eventId))
+
+      const userId = user.userId || user._id
+      
+      // Check if certificate already exists
+      const existingCertificate = certificates.find(cert => cert.event._id === eventId)
+      
+      if (existingCertificate) {
+        // Certificate exists, download it
+        try {
+          const response = await api.downloadCertificate(eventId, userId, token)
+          
+          // Create blob URL for download
+          const blob = new Blob([response], { type: 'application/pdf' })
+          const url = window.URL.createObjectURL(blob)
+          const link = document.createElement('a')
+          link.href = url
+          link.setAttribute('download', `certificate-${eventId}.pdf`)
+          document.body.appendChild(link)
+          link.click()
+          link.remove()
+          window.URL.revokeObjectURL(url)
+        } catch (downloadError) {
+          console.error('Failed to download certificate:', downloadError)
+          alert('Failed to download certificate')
+        }
+        return
+      }
+
+      // Try to generate certificate
+      try {
+        const response = await api.generateCertificate(eventId, userId, token)
+        alert('Certificate generated successfully!')
+        
+        // Refresh certificates
+        const certResponse = await api.getUserCertificates(userId, token)
+        setCertificates(certResponse.certificates || [])
+        
+        // Download the certificate
+        try {
+          const downloadResponse = await api.downloadCertificate(eventId, userId, token)
+          
+          // Create blob URL for download
+          const blob = new Blob([downloadResponse], { type: 'application/pdf' })
+          const url = window.URL.createObjectURL(blob)
+          const link = document.createElement('a')
+          link.href = url
+          link.setAttribute('download', `certificate-${eventId}.pdf`)
+          document.body.appendChild(link)
+          link.click()
+          link.remove()
+          window.URL.revokeObjectURL(url)
+        } catch (downloadError) {
+          console.error('Failed to download certificate:', downloadError)
+          alert('Failed to download certificate')
+        }
+      } catch (generateError) {
+        if (generateError.message.includes('already exists')) {
+          // Certificate exists, just download it
+          try {
+            const downloadResponse = await api.downloadCertificate(eventId, userId, token)
+            
+            // Create blob URL for download
+            const blob = new Blob([downloadResponse], { type: 'application/pdf' })
+            const url = window.URL.createObjectURL(blob)
+            const link = document.createElement('a')
+            link.href = url
+            link.setAttribute('download', `certificate-${eventId}.pdf`)
+            document.body.appendChild(link)
+            link.click()
+            link.remove()
+            window.URL.revokeObjectURL(url)
+          } catch (downloadError) {
+            console.error('Failed to download certificate:', downloadError)
+            alert('Failed to download certificate')
+          }
+        } else {
+          throw generateError
+        }
+      }
+    } catch (err) {
+      console.error('Failed to view certificate', err)
+      alert(err.message || 'Failed to view certificate')
+    } finally {
+      setCertificateLoading(prev => { const ns = new Set(prev); ns.delete(eventId); return ns })
     }
   }
 
@@ -214,8 +328,16 @@ function MyEvents() {
                     </>
                   )}
                   {event.status === 'completed' && (
-                    <button className="px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-md hover:bg-purple-700 transition duration-150 ease-in-out">
-                      View Certificate
+                    <button 
+                      onClick={() => handleViewCertificate(event.id)}
+                      disabled={certificateLoading.has(event.id)}
+                      className={`px-4 py-2 text-white text-sm font-medium rounded-md transition duration-150 ease-in-out ${
+                        certificateLoading.has(event.id)
+                          ? 'bg-gray-400 cursor-not-allowed'
+                          : 'bg-purple-600 hover:bg-purple-700'
+                      }`}
+                    >
+                      {certificateLoading.has(event.id) ? 'Loading...' : 'Download Certificate'}
                     </button>
                   )}
                 </div>

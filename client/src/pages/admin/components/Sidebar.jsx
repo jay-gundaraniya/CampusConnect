@@ -14,7 +14,7 @@ function Sidebar({ onLogout }) {
     { path: '/admin', icon: FaTachometerAlt, label: 'Dashboard' },
     { path: '/admin/user-management', icon: FaUsers, label: 'User Management' },
     { path: '/admin/event-approval', icon: FaCalendarCheck, label: 'Event Approval' },
-    { path: '/admin/certificate-manager', icon: FaCertificate, label: 'Certificate Manager' }
+    // Certificate Manager removed
   ];
 
   return (

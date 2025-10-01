@@ -5,7 +5,6 @@ import StudentLayout from '../pages/student/components/StudentLayout';
 import StudentDashboard from '../pages/student/pages/StudentDashboard';
 import Events from '../pages/student/pages/Events';
 import MyEvents from '../pages/student/pages/MyEvents';
-import Certificates from '../pages/student/pages/Certificates';
 import Profile from '../pages/student/pages/Profile';
 
 export const studentRoutes = [
@@ -41,7 +40,7 @@ export const studentRoutes = [
     <Route
       key="student-certificates"
       path="certificates"
-      element={<Certificates />}
+      element={<StudentDashboard />}
     />
     <Route
       key="student-profile"

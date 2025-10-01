@@ -1,52 +1,184 @@
 const express = require('express');
+const path = require('path');
+const fs = require('fs');
+const mongoose = require('mongoose');
 const Certificate = require('../models/Certificate');
 const Event = require('../models/Event');
+const User = require('../models/User');
 const authenticateToken = require('../middleware/authenticateToken');
-const requireAdmin = require('../middleware/requireAdmin');
+const certificateService = require('../services/certificateService');
 
 const router = express.Router();
 
-// Get all certificates (admin only)
-router.get('/', authenticateToken, requireAdmin, async (req, res) => {
+// Get all certificates for a user
+router.get('/user/:userId', authenticateToken, async (req, res) => {
   try {
-    const certificates = await Certificate.find()
-      .populate('student', 'name email')
-      .populate('event', 'title date')
-      .sort({ issuedDate: -1 });
+    const { userId } = req.params;
+    console.log('🔍 Certificate API called for user:', userId);
+    console.log('🔍 Request user:', req.user);
     
-    res.json({ certificates });
-  } catch (error) {
-    console.error('Error fetching certificates:', error);
-    res.status(500).json({ message: 'Internal server error' });
-  }
-});
-
-// Get certificates for a specific student
-router.get('/student/:studentId', authenticateToken, async (req, res) => {
-  try {
-    // Students can only view their own certificates
-    if (req.user.role === 'student' && req.user.userId !== req.params.studentId) {
+    // Users can only view their own certificates
+    if (req.user.role === 'student' && req.user.userId !== userId) {
+      console.log('❌ Unauthorized access attempt');
       return res.status(403).json({ message: 'Not authorized to view these certificates' });
     }
-    
-    const certificates = await Certificate.find({ student: req.params.studentId })
+
+    console.log('🔍 Querying certificates for user:', userId);
+    const certificates = await Certificate.find({ user: userId })
       .populate('event', 'title date location')
-      .sort({ issuedDate: -1 });
-    
+      .sort({ issuedAt: -1 });
+
+    console.log('✅ Found certificates:', certificates.length);
     res.json({ certificates });
   } catch (error) {
-    console.error('Error fetching student certificates:', error);
+    console.error('❌ Error fetching user certificates:', error);
+    console.error('❌ Error details:', error.message, error.stack);
     res.status(500).json({ message: 'Internal server error' });
   }
 });
 
-// Get certificates for a specific event
+// Get certificate for specific user and event
+router.get('/:eventId/:userId', authenticateToken, async (req, res) => {
+  try {
+    const { eventId, userId } = req.params;
+    
+    console.log('🔍 Download request for event:', eventId, 'user:', userId);
+    
+    // Find certificate
+    const certificate = await Certificate.findOne({
+      event: eventId,
+      user: userId
+    }).populate('event', 'title date').populate('user', 'name email');
+
+    // If certificate doesn't exist, try to generate it
+    if (!certificate) {
+      console.log('🔍 Certificate not found in database, attempting to generate...');
+      
+      // Check if event date has passed
+      const event = await Event.findById(eventId);
+      if (!event) {
+        return res.status(404).json({ message: 'Event not found' });
+      }
+
+      const eventDate = new Date(event.date);
+      const currentDate = new Date();
+      
+      if (eventDate >= currentDate) {
+        return res.status(400).json({ message: 'Certificates can only be generated for completed events' });
+      }
+
+      // Generate certificate
+      const user = await User.findById(userId);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      try {
+        const certificateData = {
+          user: { _id: user._id, name: user.name },
+          event: { _id: event._id, title: event.title, date: event.date },
+          certificateId: new mongoose.Types.ObjectId().toString()
+        };
+
+        const { filePath, fileName, certificateId } = await certificateService.generateCertificate(certificateData);
+
+        // Save certificate record
+        certificate = new Certificate({
+          user: user._id,
+          event: event._id,
+          filePath: filePath,
+          title: `${event.title} - Certificate of Participation`,
+          certificateId: certificateId,
+          status: 'issued'
+        });
+        await certificate.save();
+
+        console.log('✅ Certificate generated and saved:', certificateId);
+      } catch (generateError) {
+        console.error('❌ Error generating certificate:', generateError);
+        return res.status(500).json({ message: 'Failed to generate certificate' });
+      }
+    }
+
+    // Check if file exists
+    const filePath = certificateService.getCertificatePath(certificate.certificateId);
+    console.log('🔍 Looking for certificate file at:', filePath);
+    
+    if (!fs.existsSync(filePath)) {
+      console.log('❌ Certificate file not found, attempting to regenerate...');
+      
+      // Try to regenerate the certificate
+      try {
+        const event = await Event.findById(eventId);
+        const user = await User.findById(userId);
+        
+        if (!event || !user) {
+          return res.status(404).json({ message: 'Event or user not found' });
+        }
+
+        const certificateData = {
+          user: { _id: user._id, name: user.name },
+          event: { _id: event._id, title: event.title, date: event.date },
+          certificateId: certificate.certificateId
+        };
+
+        const { filePath: newFilePath } = await certificateService.generateCertificate(certificateData);
+        
+        // Update the certificate record with the new file path
+        certificate.filePath = newFilePath;
+        await certificate.save();
+        
+        console.log('✅ Certificate regenerated successfully:', newFilePath);
+        
+        // Use the new file path
+        const finalFilePath = newFilePath;
+        if (!fs.existsSync(finalFilePath)) {
+          return res.status(404).json({ message: 'Failed to generate certificate file' });
+        }
+        
+        console.log('✅ Sending regenerated certificate file:', finalFilePath);
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="certificate_${eventId}_${userId}.pdf"`);
+        res.sendFile(finalFilePath);
+        return;
+        
+      } catch (regenerateError) {
+        console.error('❌ Error regenerating certificate:', regenerateError);
+        return res.status(500).json({ message: 'Failed to regenerate certificate' });
+      }
+    }
+
+    console.log('✅ Sending certificate file:', filePath);
+
+    // Send PDF file
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="certificate_${eventId}_${userId}.pdf"`);
+    res.sendFile(filePath);
+  } catch (error) {
+    console.error('Error downloading certificate:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// Get all certificates for an event (admin/coordinator only)
 router.get('/event/:eventId', authenticateToken, async (req, res) => {
   try {
-    const certificates = await Certificate.find({ event: req.params.eventId })
-      .populate('student', 'name email')
-      .sort({ issuedDate: -1 });
+    const { eventId } = req.params;
     
+    // Only admin or event coordinator can view event certificates
+    const event = await Event.findById(eventId);
+    if (!event) {
+      return res.status(404).json({ message: 'Event not found' });
+    }
+
+    if (req.user.role !== 'admin' && event.coordinator.toString() !== req.user.userId) {
+      return res.status(403).json({ message: 'Not authorized to view these certificates' });
+    }
+
+    const certificates = await Certificate.find({ event: eventId })
+      .populate('user', 'name email')
+      .sort({ issuedAt: -1 });
+
     res.json({ certificates });
   } catch (error) {
     console.error('Error fetching event certificates:', error);
@@ -54,186 +186,169 @@ router.get('/event/:eventId', authenticateToken, async (req, res) => {
   }
 });
 
-// Generate certificates for an event (coordinator or admin)
-router.post('/generate/:eventId', authenticateToken, async (req, res) => {
+// Generate certificate for specific user and event
+router.post('/generate/:eventId/:userId', authenticateToken, async (req, res) => {
   try {
-    const event = await Event.findById(req.params.eventId)
-      .populate('participants.student', 'name email');
+    const { eventId, userId } = req.params;
     
-    if (!event) {
-      return res.status(404).json({ message: 'Event not found' });
+    // Check if certificate already exists
+    const existingCertificate = await Certificate.findOne({
+      event: eventId,
+      user: userId
+    });
+
+    if (existingCertificate) {
+      return res.status(400).json({ message: 'Certificate already exists' });
     }
-    
-    // Check if user is authorized (coordinator who created event or admin)
-    if (event.coordinator.toString() !== req.user.userId && req.user.role !== 'admin') {
-      return res.status(403).json({ message: 'Not authorized to generate certificates for this event' });
+
+    // Get event and user data
+    const event = await Event.findById(eventId);
+    const user = await User.findById(userId);
+
+    if (!event || !user) {
+      return res.status(404).json({ message: 'Event or user not found' });
     }
-    
+
+    // Check if user is registered for the event
+    const isRegistered = event.participants.some(
+      participant => participant.student.toString() === userId
+    );
+
+    if (!isRegistered) {
+      return res.status(400).json({ message: 'User is not registered for this event' });
+    }
+
     // Check if event is completed
-    if (event.status !== 'completed') {
+    const eventDate = new Date(event.date);
+    const currentDate = new Date();
+    if (eventDate >= currentDate) {
       return res.status(400).json({ message: 'Certificates can only be generated for completed events' });
     }
+
+    // Generate certificate
+    const certificateData = {
+      user: { _id: user._id, name: user.name },
+      event: { _id: event._id, title: event.title, date: event.date },
+      certificateId: new mongoose.Types.ObjectId().toString()
+    };
+
+    const { filePath, fileName, certificateId } = await certificateService.generateCertificate(certificateData);
+
+    // Save certificate record
+    const certificate = new Certificate({
+      user: userId,
+      event: eventId,
+      filePath,
+      certificateId,
+      title: `${event.title} - Certificate of Participation`
+    });
+
+    await certificate.save();
+
+    res.status(201).json({
+      message: 'Certificate generated successfully',
+      certificate: {
+        id: certificate._id,
+        certificateId,
+        title: certificate.title,
+        issuedAt: certificate.issuedAt,
+        downloadUrl: `/api/certificates/${eventId}/${userId}`
+      }
+    });
+  } catch (error) {
+    console.error('Error generating certificate:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// Verify certificate (public endpoint)
+router.get('/verify/:userId/:eventId', async (req, res) => {
+  try {
+    const { userId, eventId } = req.params;
     
-    const { grades } = req.body; // Optional grades object: { studentId: 'A+', ... }
-    
-    const certificates = [];
-    
-    for (const participant of event.participants) {
-      // Skip if participant didn't attend
-      if (participant.status !== 'attended') continue;
-      
-      // Check if certificate already exists
-      const existingCertificate = await Certificate.findOne({
-        student: participant.student._id,
-        event: event._id
+    const certificate = await Certificate.findOne({
+      user: userId,
+      event: eventId,
+      status: 'issued'
+    })
+      .populate('user', 'name email')
+      .populate('event', 'title date location');
+
+    if (!certificate) {
+      return res.status(404).json({
+        valid: false,
+        message: 'Certificate not found or not issued'
       });
-      
-      if (existingCertificate) continue;
-      
-      const certificateData = {
-        student: participant.student._id,
-        event: event._id,
-        title: `${event.title} - Certificate of Participation`,
-        grade: grades && grades[participant.student._id] ? grades[participant.student._id] : null,
-        instructor: event.coordinator.name || 'Event Coordinator',
-        status: 'issued'
-      };
-      
-      const certificate = new Certificate(certificateData);
-      await certificate.save();
-      
-      certificates.push(certificate);
     }
-    
-    res.status(201).json({ 
-      message: `${certificates.length} certificates generated successfully`,
-      certificates 
-    });
-  } catch (error) {
-    console.error('Error generating certificates:', error);
-    res.status(500).json({ message: 'Internal server error' });
-  }
-});
 
-// Mark participant as attended (coordinator or admin)
-router.post('/:eventId/attend/:studentId', authenticateToken, async (req, res) => {
-  try {
-    const event = await Event.findById(req.params.eventId);
-    
-    if (!event) {
-      return res.status(404).json({ message: 'Event not found' });
-    }
-    
-    // Check if user is authorized
-    if (event.coordinator.toString() !== req.user.userId && req.user.role !== 'admin') {
-      return res.status(403).json({ message: 'Not authorized to mark attendance for this event' });
-    }
-    
-    const participant = event.participants.find(
-      p => p.student.toString() === req.params.studentId
-    );
-    
-    if (!participant) {
-      return res.status(404).json({ message: 'Student not registered for this event' });
-    }
-    
-    participant.status = 'attended';
-    await event.save();
-    
-    res.json({ message: 'Attendance marked successfully' });
-  } catch (error) {
-    console.error('Error marking attendance:', error);
-    res.status(500).json({ message: 'Internal server error' });
-  }
-});
-
-// Mark participant as no-show (coordinator or admin)
-router.post('/:eventId/no-show/:studentId', authenticateToken, async (req, res) => {
-  try {
-    const event = await Event.findById(req.params.eventId);
-    
-    if (!event) {
-      return res.status(404).json({ message: 'Event not found' });
-    }
-    
-    // Check if user is authorized
-    if (event.coordinator.toString() !== req.user.userId && req.user.role !== 'admin') {
-      return res.status(403).json({ message: 'Not authorized to mark no-show for this event' });
-    }
-    
-    const participant = event.participants.find(
-      p => p.student.toString() === req.params.studentId
-    );
-    
-    if (!participant) {
-      return res.status(404).json({ message: 'Student not registered for this event' });
-    }
-    
-    participant.status = 'no-show';
-    await event.save();
-    
-    res.json({ message: 'No-show marked successfully' });
-  } catch (error) {
-    console.error('Error marking no-show:', error);
-    res.status(500).json({ message: 'Internal server error' });
-  }
-});
-
-// Download certificate (student or admin)
-router.get('/download/:certificateId', authenticateToken, async (req, res) => {
-  try {
-    const certificate = await Certificate.findById(req.params.certificateId)
-      .populate('student', 'name email')
-      .populate('event', 'title date location');
-    
-    if (!certificate) {
-      return res.status(404).json({ message: 'Certificate not found' });
-    }
-    
-    // Check if user is authorized
-    if (req.user.role === 'student' && certificate.student._id.toString() !== req.user.userId) {
-      return res.status(403).json({ message: 'Not authorized to download this certificate' });
-    }
-    
-    // For now, return certificate data
-    // In a real application, you would generate a PDF and return it
-    res.json({ 
-      certificate,
-      downloadUrl: `/api/certificates/${certificate.certificateId}/pdf` // Placeholder
-    });
-  } catch (error) {
-    console.error('Error downloading certificate:', error);
-    res.status(500).json({ message: 'Internal server error' });
-  }
-});
-
-// Verify certificate (public)
-router.get('/verify/:certificateId', async (req, res) => {
-  try {
-    const certificate = await Certificate.findById(req.params.certificateId)
-      .populate('student', 'name email')
-      .populate('event', 'title date location');
-    
-    if (!certificate) {
-      return res.status(404).json({ message: 'Certificate not found' });
-    }
-    
-    res.json({ 
+    res.json({
       valid: true,
       certificate: {
         certificateId: certificate.certificateId,
         title: certificate.title,
-        studentName: certificate.student.name,
+        studentName: certificate.user.name,
+        studentEmail: certificate.user.email,
         eventTitle: certificate.event.title,
-        issuedDate: certificate.issuedDate,
-        grade: certificate.grade,
-        instructor: certificate.instructor
+        eventDate: certificate.event.date,
+        eventLocation: certificate.event.location,
+        issuedAt: certificate.issuedAt
       }
     });
   } catch (error) {
     console.error('Error verifying certificate:', error);
+    res.status(500).json({
+      valid: false,
+      message: 'Internal server error'
+    });
+  }
+});
+
+// Delete certificate (admin/coordinator only)
+router.delete('/:certificateId', authenticateToken, async (req, res) => {
+  try {
+    const { certificateId } = req.params;
+    
+    const certificate = await Certificate.findById(certificateId)
+      .populate('event', 'coordinator');
+
+    if (!certificate) {
+      return res.status(404).json({ message: 'Certificate not found' });
+    }
+
+    // Check authorization
+    if (req.user.role !== 'admin' && certificate.event.coordinator.toString() !== req.user.userId) {
+      return res.status(403).json({ message: 'Not authorized to delete this certificate' });
+    }
+
+    // Delete file
+    await certificateService.deleteCertificate(certificate.certificateId);
+
+    // Delete database record
+    await Certificate.findByIdAndDelete(certificateId);
+
+    res.json({ message: 'Certificate deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting certificate:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 });
 
-module.exports = router; 
+// Manual trigger for certificate generation (admin only)
+router.post('/generate-all', authenticateToken, async (req, res) => {
+  try {
+    // Only admin can trigger manual generation
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Admin access required' });
+    }
+
+    const certificateCron = require('../services/certificateCron');
+    await certificateCron.runNow();
+
+    res.json({ message: 'Certificate generation job triggered successfully' });
+  } catch (error) {
+    console.error('Error triggering certificate generation:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+module.exports = router;
